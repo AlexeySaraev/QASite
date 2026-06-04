@@ -36,7 +36,6 @@ function getSystemPrompt(type: string): string {
   }
 }
 
-// --- GEMINI ---
 async function askGemini(systemPrompt: string, userPrompt: string): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("Ключ GEMINI_API_KEY не найден.");
@@ -51,7 +50,6 @@ async function askGemini(systemPrompt: string, userPrompt: string): Promise<stri
   return data?.candidates[0]?.content?.parts[0]?.text || "Пустой ответ от Gemini";
 }
 
-// --- GROQ ---
 async function askGroq(systemPrompt: string, userPrompt: string): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("Добавьте ключ GROQ_API_KEY в Render.");
@@ -66,7 +64,6 @@ async function askGroq(systemPrompt: string, userPrompt: string): Promise<string
   return data?.choices[0]?.message?.content || "Пустой ответ от Groq";
 }
 
-// --- CEREBRAS ---
 async function askCerebras(systemPrompt: string, userPrompt: string): Promise<string> {
   const apiKey = process.env.CEREBRAS_API_KEY;
   if (!apiKey) throw new Error("Добавьте ключ CEREBRAS_API_KEY в Render.");
