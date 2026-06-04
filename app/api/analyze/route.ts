@@ -12,14 +12,13 @@ export async function POST(req: Request) {
 
     switch (model) {
       case 'gemini': resultText = await askGemini(systemPrompt, prompt); break;
-      case 'llama': resultText = await askLlama(systemPrompt, prompt); break;
+      case 'groq': resultText = await askGroq(systemPrompt, prompt); break;
       default: return NextResponse.json({ error: "Неизвестная модель" }, { status: 400 });
     }
 
     return NextResponse.json({ result: resultText });
   } catch (error: any) {
     let errorMsg = error.message || "Внутренняя ошибка";
-    if (error.cause) errorMsg += ` (Причина: ${JSON.stringify(error.cause)})`;
     return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
 }
@@ -57,32 +56,32 @@ async function askGemini(systemPrompt: string, userPrompt: string): Promise<stri
   return data?.candidates[0]?.content?.parts[0]?.text || "Пустой ответ от Gemini";
 }
 
-// --- LLAMA 3.1 (Через OpenRouter) ---
-async function askLlama(systemPrompt: string, userPrompt: string): Promise<string> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("Добавьте ключ OPENROUTER_API_KEY в Netlify.");
+// --- GROQ (LLAMA 3) ---
+async function askGroq(systemPrompt: string, userPrompt: string): Promise<string> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error("Добавьте ключ GROQ_API_KEY в Render.");
 
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-      // Передаем название вашего сайта для статистики OpenRouter (обязательно для бесплатных ключей)
-      'HTTP-Referer': 'https://qasav.netlify.app', 
-      'X-Title': 'QA AI Assistant'
+      'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({ 
-      // Используем бесплатную версию Llama 3.1 8B
-      model: 'google/gemma-2-9b-it:free', 
-      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] 
+      model: 'llama-3.1-70b-versatile', // Мощная и быстрая модель
+      messages: [
+        { role: 'system', content: systemPrompt }, 
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.4
     })
   });
   
   if (!res.ok) { 
     const e = await res.json(); 
-    throw new Error(`Llama (OpenRouter): ${e?.error?.message || res.status}`); 
+    throw new Error(`Groq: ${e?.error?.message || res.status}`); 
   }
   
   const data = await res.json();
-  return data?.choices[0]?.message?.content || "Пустой ответ от Llama";
+  return data?.choices[0]?.message?.content || "Пустой ответ от Groq";
 }
