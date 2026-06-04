@@ -35,7 +35,7 @@ function getSystemPrompt(type: string): string {
   }
 }
 
-// --- GEMINI (Исправлено: используется модель из вашего curl) ---
+// --- GEMINI ---
 async function askGemini(systemPrompt: string, userPrompt: string): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("Ключ GEMINI_API_KEY не найден.");
@@ -56,36 +56,52 @@ async function askGemini(systemPrompt: string, userPrompt: string): Promise<stri
   return data?.candidates[0]?.content?.parts[0]?.text || "Пустой ответ от Gemini";
 }
 
-// --- GIGACHAT ---
+// --- GIGACHAT (ОБНОВЛЕНО ПОД AUTHORIZATION KEY) ---
 async function askGigaChat(systemPrompt: string, userPrompt: string): Promise<string> {
-  const clientId = process.env.GIGACHAT_CLIENT_ID;
-  const clientSecret = process.env.GIGACHAT_CLIENT_SECRET;
-  if (!clientId || !clientSecret) throw new Error("Для GigaChat добавьте переменные GIGACHAT_CLIENT_ID и GIGACHAT_CLIENT_SECRET в Netlify.");
+  const authKey = process.env.GIGACHAT_API_KEY;
+  if (!authKey) throw new Error("Добавьте ключ GIGACHAT_API_KEY (Authorization key из кабинета Сбера) в Netlify.");
 
+  // Генерируем случайный RqUID, который требует Сбер
+  const rqUid = crypto.randomUUID();
+
+  // 1. Получаем Access Token
   const tokenRes = await fetch('https://ngw.devices.sberbank.ru:9443/api/v2/oauth', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`
+      'Accept': 'application/json',
+      'RqUID': rqUid,
+      'Authorization': `Basic ${authKey}` // Используем ваш ключ напрямую
     },
     body: 'scope=GIGACHAT_API_PERS'
   });
+  
   if (!tokenRes.ok) { 
     const e = await tokenRes.json(); 
     throw new Error(`GigaChat Auth Error: ${e.error_description || tokenRes.status}`); 
   }
+  
   const tokenData = await tokenRes.json();
   const accessToken = tokenData.access_token;
 
+  // 2. Запрашиваем ответ у нейросети
   const res = await fetch('https://gigachat.devices.sberbank.ru/api/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
-    body: JSON.stringify({ model: 'GigaChat', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] })
+    headers: { 
+      'Content-Type': 'application/json', 
+      'Authorization': `Bearer ${accessToken}` 
+    },
+    body: JSON.stringify({ 
+      model: 'GigaChat', 
+      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] 
+    })
   });
+  
   if (!res.ok) { 
     const e = await res.json(); 
     throw new Error(`GigaChat: ${e?.error?.message || res.status}`); 
   }
+  
   const data = await res.json();
   return data?.choices[0]?.message?.content || "Пустой ответ от GigaChat";
 }
