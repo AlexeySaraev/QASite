@@ -1,182 +1,96 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
     const { prompt, taskType, model } = await req.json();
-
     if (!prompt || !taskType || !model) {
-      return NextResponse.json(
-        { error: "Отсутствуют параметры (prompt, taskType, model)" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Отсутствуют параметры" }, { status: 400 });
     }
 
     const systemPrompt = getSystemPrompt(taskType);
     let resultText = "";
 
-    if (model === "gemini") {
-      resultText = await askGemini(systemPrompt, prompt);
-    } else if (model === "groq") {
-      resultText = await askGroq(systemPrompt, prompt);
-    } else if (model === "cerebras") {
-      resultText = await askCerebras(systemPrompt, prompt);
-    } else {
-      return NextResponse.json(
-        { error: `Неизвестная модель: ${model}` },
-        { status: 400 }
-      );
+    switch (model) {
+      case 'gemini': resultText = await askGemini(systemPrompt, prompt); break;
+      case 'groq': resultText = await askGroq(systemPrompt, prompt); break;
+      case 'cerebras': resultText = await askCerebras(systemPrompt, prompt); break;
+      default: return NextResponse.json({ error: "Неизвестная модель" }, { status: 400 });
     }
 
     return NextResponse.json({ result: resultText });
   } catch (error: any) {
-    console.error("API /api/analyze error:", error);
-    return NextResponse.json(
-      { error: error.message || "Внутренняя ошибка сервера" },
-      { status: 500 }
-    );
+    let errorMsg = error.message || "Внутренняя ошибка";
+    return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
 }
 
 function getSystemPrompt(type: string): string {
   switch (type) {
-    case "requirements":
-      return `Ты — Senior QA Engineer. Проанализируй требования и:
-
-1) Найди противоречия и неоднозначности
-2) Выяви недостающие сценарии и условия
-3) Укажи риски и предположения
-4) Предложи улучшения формулировок
-
-Структурируй ответ по разделам.`;
-    case "testcases":
-      return `Ты — опытный инженер по тестированию. На основе описания функционала:
-
-1) Сгенерируй позитивные сценарии (happy path)
-2) Добавь негативные сценарии
-3) Пропиши граничные значения и edge-cases
-4) Для каждого тест-кейса укажи: Название, Предусловия, Шаги, Ожидаемый результат.
-
-Структурируй ответ списком тест-кейсов.`;
-    case "code":
-      return `Ты — QA Automation Engineer и Code Reviewer. Проанализируй код:
-
-1) Найди возможные баги и уязвимости
-2) Укажи проблемные места по производительности
-3) Предложи тест-кейсы для проверки этой функции/модуля
-4) При необходимости предложи рефакторинг.
-
-Структурируй ответ по пунктам.`;
-    default:
-      return "Ты помощник QA.";
+    case 'requirements':
+      return `Ты — Senior QA Engineer. Проанализируй требования. Найди противоречия, неоднозначности, пропущенные краевые случаи. Дай рекомендации. Форматируй ответ красиво.`;
+    case 'testcases':
+      return `Ты — Эксперт по тест-дизайну. Сгенерируй тест-кейсы. Формат: ID, Название, Тип (Позитивный/Негативный/Краевой), Предусловия, Шаги, Ожидаемый результат.`;
+    case 'code':
+      return `Ты — QA Automation Engineer & Security Expert. Проанализируй код: найди баги, уязвимости, проблемы производительности. Предложи рефакторинг.`;
+    default: return "Ты помощник QA.";
   }
 }
 
-// ---------- GEMINI ----------
+// --- GEMINI ---
 async function askGemini(systemPrompt: string, userPrompt: string): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("Ключ GEMINI_API_KEY не найден в окружении Render.");
+  if (!apiKey) throw new Error("Ключ GEMINI_API_KEY не найден.");
 
-  const res = await fetch(
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-goog-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `${systemPrompt}\n\n${userPrompt}`,
-              },
-            ],
-          },
-        ],
-      }),
-    }
-  );
-
-  if (!res.ok) {
-    let msg = `Gemini HTTP ${res.status}`;
-    try {
-      const e = await res.json();
-      msg = `Gemini: ${e?.error?.message || msg}`;
-    } catch {}
-    throw new Error(msg);
-  }
-
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-goog-api-key': apiKey },
+    body: JSON.stringify({ contents: [{ parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }] })
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(`Gemini: ${e?.error?.message || res.status}`); }
   const data = await res.json();
-  return (
-    data?.candidates?.[0]?.content?.parts?.[0]?.text || "Пустой ответ от Gemini"
-  );
+  return data?.candidates[0]?.content?.parts[0]?.text || "Пустой ответ от Gemini";
 }
 
-// ---------- GROQ (Llama 3.3) ----------
+// --- GROQ ---
 async function askGroq(systemPrompt: string, userPrompt: string): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error("Ключ GROQ_API_KEY не найден в окружении Render.");
+  if (!apiKey) throw new Error("Добавьте ключ GROQ_API_KEY в Render.");
 
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.35,
-    }),
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] })
   });
-
-  if (!res.ok) {
-    let msg = `Groq HTTP ${res.status}`;
-    try {
-      const e = await res.json();
-      msg = `Groq: ${e?.error?.message || msg}`;
-    } catch {}
-    throw new Error(msg);
-  }
-
+  if (!res.ok) { const e = await res.json(); throw new Error(`Groq: ${e?.error?.message || res.status}`); }
   const data = await res.json();
-  return data?.choices?.[0]?.message?.content || "Пустой ответ от Groq";
+  return data?.choices[0]?.message?.content || "Пустой ответ от Groq";
 }
 
-// ---------- CEREBRAS ----------
+// --- CEREBRAS ---
 async function askCerebras(systemPrompt: string, userPrompt: string): Promise<string> {
   const apiKey = process.env.CEREBRAS_API_KEY;
-  if (!apiKey) throw new Error("Ключ CEREBRAS_API_KEY не найден в окружении Render.");
+  if (!apiKey) throw new Error("Добавьте ключ CEREBRAS_API_KEY в Render.");
 
-  const res = await fetch("https://api.cerebras.ai/v1/chat/completions", {
-    method: "POST",
+  const res = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+    method: 'POST',
     headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
     },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-instruct", // актуальная модель от Cerebras на базе Llama 3.3
+    body: JSON.stringify({ 
+      model: 'llama3.1-8b', // Исправленная актуальная модель
       messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.3,
-    }),
+        { role: 'system', content: systemPrompt }, 
+        { role: 'user', content: userPrompt }
+      ]
+    })
   });
 
-  if (!res.ok) {
-    let msg = `Cerebras HTTP ${res.status}`;
-    try {
-      const e = await res.json();
-      msg = `Cerebras: ${e?.error?.message || msg}`;
-    } catch {}
-    throw new Error(msg);
+  if (!res.ok) { 
+    const e = await res.json(); 
+    throw new Error(`Cerebras: ${e?.error?.message || res.status}`); 
   }
 
   const data = await res.json();
-  return data?.choices?.[0]?.message?.content || "Пустой ответ от Cerebras";
+  return data?.choices[0]?.message?.content || "Пустой ответ от Cerebras";
 }
