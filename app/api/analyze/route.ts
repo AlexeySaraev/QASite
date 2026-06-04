@@ -12,7 +12,7 @@ export async function POST(req: Request) {
 
     switch (model) {
       case 'gemini': resultText = await askGemini(systemPrompt, prompt); break;
-      case 'grok': resultText = await askGrok(systemPrompt, prompt); break;
+      case 'llama': resultText = await askLlama(systemPrompt, prompt); break;
       default: return NextResponse.json({ error: "Неизвестная модель" }, { status: 400 });
     }
 
@@ -57,26 +57,32 @@ async function askGemini(systemPrompt: string, userPrompt: string): Promise<stri
   return data?.candidates[0]?.content?.parts[0]?.text || "Пустой ответ от Gemini";
 }
 
-// --- GROK (Детальный вывод ошибок) ---
-async function askGrok(systemPrompt: string, userPrompt: string): Promise<string> {
-  const apiKey = process.env.GROK_API_KEY;
-  if (!apiKey) throw new Error("Ключ GROK_API_KEY не найден.");
+// --- LLAMA 3.1 (Через OpenRouter) ---
+async function askLlama(systemPrompt: string, userPrompt: string): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("Добавьте ключ OPENROUTER_API_KEY в Netlify.");
 
-  const res = await fetch('https://api.x.ai/v1/chat/completions', {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      // Передаем название вашего сайта для статистики OpenRouter (обязательно для бесплатных ключей)
+      'HTTP-Referer': 'https://qasav.netlify.app', 
+      'X-Title': 'QA AI Assistant'
+    },
     body: JSON.stringify({ 
-      model: 'grok-2-mini', // Возвращаем grok-beta, так как она базовая
+      // Используем бесплатную версию Llama 3.1 8B
+      model: 'meta-llama/llama-3.1-8b-instruct:free', 
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] 
     })
   });
   
   if (!res.ok) { 
-    // Выводим ПОЛНЫЙ ответ сервера, чтобы понять причину 400
-    const errorText = await res.text();
-    throw new Error(`Grok ответил ошибкой (${res.status}): ${errorText}`); 
+    const e = await res.json(); 
+    throw new Error(`Llama (OpenRouter): ${e?.error?.message || res.status}`); 
   }
   
   const data = await res.json();
-  return data?.choices[0]?.message?.content || "Пустой ответ от Grok";
+  return data?.choices[0]?.message?.content || "Пустой ответ от Llama";
 }
