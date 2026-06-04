@@ -72,14 +72,14 @@ export default function Home() {
                 ⚡ Groq
               </button>
               <button
-                onClick={() => setModel("glm")}
+                onClick={() => setModel("deepseek")}
                 className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all border ${
-                  model === "glm" 
+                  model === "deepseek" 
                     ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm" 
                     : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                🇨🇳 GLM-5.1
+                🧠 DeepSeek
               </button>
             </div>
           </div>
