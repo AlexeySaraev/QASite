@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     switch (model) {
       case 'gemini': resultText = await askGemini(systemPrompt, prompt); break;
       case 'groq': resultText = await askGroq(systemPrompt, prompt); break;
-      case 'deepseek': resultText = await askDeepSeek(systemPrompt, prompt, taskType); break;
+      case 'deepseek': resultText = await askCerebras(systemPrompt, prompt); break;
       default: return NextResponse.json({ error: "Неизвестная модель" }, { status: 400 });
     }
 
@@ -66,35 +66,31 @@ async function askGroq(systemPrompt: string, userPrompt: string): Promise<string
   return data?.choices[0]?.message?.content || "Пустой ответ от Groq";
 }
 
-// --- DEEPSEEK (через OpenRouter) ---
-async function askDeepSeek(systemPrompt: string, userPrompt: string, taskType: string): Promise<string> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("Добавьте ключ OPENROUTER_API_KEY в Render.");
+// --- CEREBRAS (Самый быстрый ИИ в мире) ---
+async function askCerebras(systemPrompt: string, userPrompt: string): Promise<string> {
+  const apiKey = process.env.CEREBRAS_API_KEY;
+  if (!apiKey) throw new Error("Добавьте ключ CEREBRAS_API_KEY в Render.");
 
-  // Если анализируем код — используем DeepSeek Coder, иначе — DeepSeek Chat
-  const modelName = taskType === 'code' 
-    ? 'deepseek/deepseek-coder' 
-    : 'deepseek/deepseek-chat';
-
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  const res = await fetch('https://api.cerebras.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://asqa.onrender.com', 
-      'X-Title': 'QA AI Assistant'
+      'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({ 
-      model: modelName, 
-      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] 
+      model: 'llama-3.3-70b-versatile', 
+      messages: [
+        { role: 'system', content: systemPrompt }, 
+        { role: 'user', content: userPrompt }
+      ]
     })
   });
-  
+
   if (!res.ok) { 
     const e = await res.json(); 
-    throw new Error(`DeepSeek: ${e?.error?.message || res.status}`); 
+    throw new Error(`Cerebras: ${e?.error?.message || res.status}`); 
   }
-  
+
   const data = await res.json();
-  return data?.choices[0]?.message?.content || "Пустой ответ от DeepSeek";
+  return data?.choices[0]?.message?.content || "Пустой ответ от Cerebras";
 }
