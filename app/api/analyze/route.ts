@@ -13,6 +13,7 @@ export async function POST(req: Request) {
     switch (model) {
       case 'gemini': resultText = await askGemini(systemPrompt, prompt); break;
       case 'groq': resultText = await askGroq(systemPrompt, prompt); break;
+      case 'glm': resultText = await askGLM(systemPrompt, prompt); break;
       default: return NextResponse.json({ error: "Неизвестная модель" }, { status: 400 });
     }
 
@@ -42,46 +43,54 @@ async function askGemini(systemPrompt: string, userPrompt: string): Promise<stri
 
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-goog-api-key': apiKey
-    },
+    headers: { 'Content-Type': 'application/json', 'X-goog-api-key': apiKey },
     body: JSON.stringify({ contents: [{ parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }] })
   });
-  if (!res.ok) { 
-    const e = await res.json(); 
-    throw new Error(`Gemini: ${e?.error?.message || res.status}`); 
-  }
+  if (!res.ok) { const e = await res.json(); throw new Error(`Gemini: ${e?.error?.message || res.status}`); }
   const data = await res.json();
   return data?.candidates[0]?.content?.parts[0]?.text || "Пустой ответ от Gemini";
 }
 
-// --- GROQ (LLAMA 3) ---
+// --- GROQ ---
 async function askGroq(systemPrompt: string, userPrompt: string): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("Добавьте ключ GROQ_API_KEY в Render.");
 
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] })
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(`Groq: ${e?.error?.message || res.status}`); }
+  const data = await res.json();
+  return data?.choices[0]?.message?.content || "Пустой ответ от Groq";
+}
+
+// --- GLM (ZHIPU AI) ---
+async function askGLM(systemPrompt: string, userPrompt: string): Promise<string> {
+  const apiKey = process.env.ZHIPU_API_KEY;
+  if (!apiKey) throw new Error("Добавьте ключ ZHIPU_API_KEY в Render.");
+
+  const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+    method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({ 
-      model: 'llama-3.3-70b-versatile', // Мощная и быстрая модель
+      model: 'glm-5.1', // Используем модель, которую вы указали
       messages: [
         { role: 'system', content: systemPrompt }, 
         { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.4
+      ]
     })
   });
   
   if (!res.ok) { 
     const e = await res.json(); 
-    throw new Error(`Groq: ${e?.error?.message || res.status}`); 
+    throw new Error(`GLM: ${e?.error?.message || res.status}`); 
   }
   
   const data = await res.json();
-  return data?.choices[0]?.message?.content || "Пустой ответ от Groq";
+  return data?.choices[0]?.message?.content || "Пустой ответ от GLM";
 }
