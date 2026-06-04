@@ -1,149 +1,100 @@
-"use client";
+import { NextResponse } from 'next/server';
 
-import { useState } from "react";
-
-export default function Home() {
-  const [input, setInput] = useState("");
-  const [result, setResult] = useState("");
-  const [model, setModel] = useState("gemini");
-  const [taskType, setTaskType] = useState("requirements");
-  const [loading, setLoading] = useState(false);
-
-  const handleAnalyze = async () => {
-    if (!input.trim()) return;
-    setLoading(true);
-    setResult("⏳ ИИ обрабатывает запрос...");
-
-    try {
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: input, taskType, model }),
-      });
-      
-      const data = await res.json();
-      
-      if (data.error) {
-        setResult(`❌ Ошибка: ${data.error}`);
-      } else {
-        setResult(data.result);
-      }
-    } catch (error) {
-      setResult("❌ Произошла ошибка сети.");
-    } finally {
-      setLoading(false);
+export async function POST(req: Request) {
+  try {
+    const { prompt, taskType, model } = await req.json();
+    if (!prompt || !taskType || !model) {
+      return NextResponse.json({ error: "Отсутствуют параметры" }, { status: 400 });
     }
-  };
 
-  return (
-    <main className="max-w-5xl mx-auto px-4 py-12 sm:py-20">
-      <div className="text-center mb-12">
-        <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-blue-600 via-violet-600 to-purple-600 text-transparent bg-clip-text">
-          QA AI Assistant
-        </h1>
-        <p className="text-lg text-slate-500 max-w-2xl mx-auto">
-          Ваш персональный ИИ-помощник для обеспечения качества.
-        </p>
-      </div>
+    const systemPrompt = getSystemPrompt(taskType);
+    let resultText = "";
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Нейросеть</label>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setModel("gemini")}
-                className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all border ${
-                  model === "gemini" 
-                    ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm" 
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                ✨ Gemini
-              </button>
-              <button
-                onClick={() => setModel("groq")}
-                className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all border ${
-                  model === "groq" 
-                    ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm" 
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                ⚡ Groq
-              </button>
-              <button
-                onClick={() => setModel("deepseek")}
-                className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all border ${
-                  model === "deepseek" 
-                    ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm" 
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                🧠 DeepSeek
-              </button>
-            </div>
-          </div>
+    switch (model) {
+      case 'gemini': resultText = await askGemini(systemPrompt, prompt); break;
+      case 'groq': resultText = await askGroq(systemPrompt, prompt); break;
+      case 'deepseek': resultText = await askDeepSeek(systemPrompt, prompt, taskType); break;
+      default: return NextResponse.json({ error: "Неизвестная модель" }, { status: 400 });
+    }
 
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Тип задачи</label>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setTaskType("requirements")}
-                className={`flex-1 py-2.5 px-2 rounded-xl text-xs font-medium transition-all border ${
-                  taskType === "requirements" 
-                    ? "bg-violet-50 border-violet-500 text-violet-700 shadow-sm" 
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                📋 Анализ
-              </button>
-              <button
-                onClick={() => setTaskType("testcases")}
-                className={`flex-1 py-2.5 px-2 rounded-xl text-xs font-medium transition-all border ${
-                  taskType === "testcases" 
-                    ? "bg-violet-50 border-violet-500 text-violet-700 shadow-sm" 
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                🧪 Тест-кейсы
-              </button>
-              <button
-                onClick={() => setTaskType("code")}
-                className={`flex-1 py-2.5 px-2 rounded-xl text-xs font-medium transition-all border ${
-                  taskType === "code" 
-                    ? "bg-violet-50 border-violet-500 text-violet-700 shadow-sm" 
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                💻 Код
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+    return NextResponse.json({ result: resultText });
+  } catch (error: any) {
+    let errorMsg = error.message || "Внутренняя ошибка";
+    return NextResponse.json({ error: errorMsg }, { status: 500 });
+  }
+}
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
-        <textarea
-          placeholder="Вставьте требования или код..."
-          className="w-full h-52 p-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all resize-y text-sm text-slate-800 placeholder:text-slate-400"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-        />
-      </div>
+function getSystemPrompt(type: string): string {
+  switch (type) {
+    case 'requirements':
+      return `Ты — Senior QA Engineer. Проанализируй требования. Найди противоречия, неоднозначности, пропущенные краевые случаи. Дай рекомендации. Форматируй ответ красиво.`;
+    case 'testcases':
+      return `Ты — Эксперт по тест-дизайну. Сгенерируй тест-кейсы. Формат: ID, Название, Тип (Позитивный/Негативный/Краевой), Предусловия, Шаги, Ожидаемый результат.`;
+    case 'code':
+      return `Ты — QA Automation Engineer & Security Expert. Проанализируй код: найди баги, уязвимости, проблемы производительности. Предложи рефакторинг.`;
+    default: return "Ты помощник QA.";
+  }
+}
 
-      <button
-        onClick={handleAnalyze}
-        disabled={loading || !input.trim()}
-        className="w-full bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-slate-400 disabled:to-slate-400 text-white font-bold py-4 px-6 rounded-2xl transition-all shadow-lg shadow-blue-500/25 text-lg"
-      >
-        {loading ? "Анализирую..." : "🚀 Запустить анализ"}
-      </button>
+// --- GEMINI ---
+async function askGemini(systemPrompt: string, userPrompt: string): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("Ключ GEMINI_API_KEY не найден.");
 
-      {result && (
-        <div className="mt-8 bg-white rounded-2xl shadow-sm border border-slate-200 p-6 min-h-[150px] whitespace-pre-wrap font-mono text-sm text-slate-800 leading-relaxed">
-          {result}
-        </div>
-      )}
-    </main>
-  );
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-goog-api-key': apiKey },
+    body: JSON.stringify({ contents: [{ parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }] })
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(`Gemini: ${e?.error?.message || res.status}`); }
+  const data = await res.json();
+  return data?.candidates[0]?.content?.parts[0]?.text || "Пустой ответ от Gemini";
+}
+
+// --- GROQ ---
+async function askGroq(systemPrompt: string, userPrompt: string): Promise<string> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error("Добавьте ключ GROQ_API_KEY в Render.");
+
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] })
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(`Groq: ${e?.error?.message || res.status}`); }
+  const data = await res.json();
+  return data?.choices[0]?.message?.content || "Пустой ответ от Groq";
+}
+
+// --- DEEPSEEK (через OpenRouter) ---
+async function askDeepSeek(systemPrompt: string, userPrompt: string, taskType: string): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("Добавьте ключ OPENROUTER_API_KEY в Render.");
+
+  // Если анализируем код — используем DeepSeek Coder, иначе — DeepSeek Chat
+  const modelName = taskType === 'code' 
+    ? 'deepseek/deepseek-coder' 
+    : 'deepseek/deepseek-chat';
+
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': 'https://asqa.onrender.com', 
+      'X-Title': 'QA AI Assistant'
+    },
+    body: JSON.stringify({ 
+      model: modelName, 
+      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] 
+    })
+  });
+  
+  if (!res.ok) { 
+    const e = await res.json(); 
+    throw new Error(`DeepSeek: ${e?.error?.message || res.status}`); 
+  }
+  
+  const data = await res.json();
+  return data?.choices[0]?.message?.content || "Пустой ответ от DeepSeek";
 }
