@@ -12,14 +12,12 @@ export async function POST(req: Request) {
 
     switch (model) {
       case 'gemini': resultText = await askGemini(systemPrompt, prompt); break;
-      case 'gigachat': resultText = await askGigaChat(systemPrompt, prompt); break;
       case 'grok': resultText = await askGrok(systemPrompt, prompt); break;
       default: return NextResponse.json({ error: "Неизвестная модель" }, { status: 400 });
     }
 
     return NextResponse.json({ result: resultText });
   } catch (error: any) {
-    // Выводим максимально подробную ошибку
     let errorMsg = error.message || "Внутренняя ошибка";
     if (error.cause) errorMsg += ` (Причина: ${JSON.stringify(error.cause)})`;
     return NextResponse.json({ error: errorMsg }, { status: 500 });
@@ -59,67 +57,7 @@ async function askGemini(systemPrompt: string, userPrompt: string): Promise<stri
   return data?.candidates[0]?.content?.parts[0]?.text || "Пустой ответ от Gemini";
 }
 
-// --- GIGACHAT (Улучшено) ---
-async function askGigaChat(systemPrompt: string, userPrompt: string): Promise<string> {
-  const authKey = process.env.GIGACHAT_API_KEY;
-  if (!authKey) throw new Error("Добавьте ключ GIGACHAT_API_KEY в Netlify.");
-
-  // Генерируем UUID надежным способом (без crypto.randomUUID, чтобы избежать ошибок Netlify)
-  const rqUid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-
-  // 1. Получаем Access Token
-  let tokenRes;
-  try {
-    tokenRes = await fetch('https://ngw.devices.sberbank.ru:9443/api/v2/oauth', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-        'RqUID': rqUid,
-        'Authorization': `Basic ${authKey}`
-      },
-      body: 'scope=GIGACHAT_API_PERS'
-    });
-  } catch (fetchError: any) {
-    // Если fetch падает на этапе соединения (fetch failed)
-    throw new Error(`GigaChat: Не удалось подключиться к серверу Сбера. ${fetchError.message}. Проверьте, нет ли пробелов в ключе.`);
-  }
-  
-  if (!tokenRes.ok) { 
-    let errText = `Статус: ${tokenRes.status}`;
-    try { const e = await tokenRes.json(); errText = e.error_description || errText; } catch {}
-    throw new Error(`GigaChat Auth Error: ${errText}`); 
-  }
-  
-  const tokenData = await tokenRes.json();
-  const accessToken = tokenData.access_token;
-
-  // 2. Запрашиваем ответ у нейросети
-  const res = await fetch('https://gigachat.devices.sberbank.ru/api/v1/chat/completions', {
-    method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json', 
-      'Authorization': `Bearer ${accessToken}` 
-    },
-    body: JSON.stringify({ 
-      model: 'GigaChat', 
-      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] 
-    })
-  });
-  
-  if (!res.ok) { 
-    const e = await res.json(); 
-    throw new Error(`GigaChat: ${e?.error?.message || res.status}`); 
-  }
-  
-  const data = await res.json();
-  return data?.choices[0]?.message?.content || "Пустой ответ от GigaChat";
-}
-
-// --- GROK (Исправлено: новая модель) ---
+// --- GROK (Детальный вывод ошибок) ---
 async function askGrok(systemPrompt: string, userPrompt: string): Promise<string> {
   const apiKey = process.env.GROK_API_KEY;
   if (!apiKey) throw new Error("Ключ GROK_API_KEY не найден.");
@@ -128,14 +66,17 @@ async function askGrok(systemPrompt: string, userPrompt: string): Promise<string
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({ 
-      model: 'grok-2-mini', // Заменили grok-beta на актуальную grok-2-mini
+      model: 'grok-beta', // Возвращаем grok-beta, так как она базовая
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] 
     })
   });
+  
   if (!res.ok) { 
-    const e = await res.json(); 
-    throw new Error(`Grok: ${e?.error?.message || res.status}`); 
+    // Выводим ПОЛНЫЙ ответ сервера, чтобы понять причину 400
+    const errorText = await res.text();
+    throw new Error(`Grok ответил ошибкой (${res.status}): ${errorText}`); 
   }
+  
   const data = await res.json();
   return data?.choices[0]?.message?.content || "Пустой ответ от Grok";
 }
