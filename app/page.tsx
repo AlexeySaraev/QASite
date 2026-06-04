@@ -51,72 +51,42 @@ export default function Home() {
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Нейросеть</label>
             <div className="flex gap-2">
-              <button
-                onClick={() => setModel("gemini")}
-                className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all border ${
-                  model === "gemini" 
-                    ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm" 
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                ✨ Gemini
-              </button>
-              <button
-                onClick={() => setModel("groq")}
-                className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all border ${
-                  model === "groq" 
-                    ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm" 
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                ⚡ Groq
-              </button>
-              <button
-                onClick={() => setModel("deepseek")}
-                className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all border ${
-                  model === "deepseek" 
-                    ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm" 
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                🧠 DeepSeek
-              </button>
+              {["gemini", "groq", "deepseek"].map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setModel(m)}
+                  className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all border ${
+                    model === m 
+                      ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm" 
+                      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  {m === "gemini" ? "✨ Gemini" : m === "groq" ? "⚡ Groq" : "🚀 Cerebras"}
+                </button>
+              ))}
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Тип задачи</label>
             <div className="flex gap-2">
-              <button
-                onClick={() => setTaskType("requirements")}
-                className={`flex-1 py-2.5 px-2 rounded-xl text-xs font-medium transition-all border ${
-                  taskType === "requirements" 
-                    ? "bg-violet-50 border-violet-500 text-violet-700 shadow-sm" 
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                📋 Анализ
-              </button>
-              <button
-                onClick={() => setTaskType("testcases")}
-                className={`flex-1 py-2.5 px-2 rounded-xl text-xs font-medium transition-all border ${
-                  taskType === "testcases" 
-                    ? "bg-violet-50 border-violet-500 text-violet-700 shadow-sm" 
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                🧪 Тест-кейсы
-              </button>
-              <button
-                onClick={() => setTaskType("code")}
-                className={`flex-1 py-2.5 px-2 rounded-xl text-xs font-medium transition-all border ${
-                  taskType === "code" 
-                    ? "bg-violet-50 border-violet-500 text-violet-700 shadow-sm" 
-                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                💻 Код
-              </button>
+              {[
+                { id: "requirements", label: "📋 Анализ" },
+                { id: "testcases", label: "🧪 Тест-кейсы" },
+                { id: "code", label: "💻 Код" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setTaskType(tab.id)}
+                  className={`flex-1 py-2.5 px-2 rounded-xl text-xs font-medium transition-all border ${
+                    taskType === tab.id 
+                      ? "bg-violet-50 border-violet-500 text-violet-700 shadow-sm" 
+                      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
