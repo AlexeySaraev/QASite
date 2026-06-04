@@ -1,6 +1,6 @@
 export const metadata = {
   title: 'QA AI Assistant',
-  description: 'Анализ требований, тест-кейсы и ревью кода',
+  description: 'Анализ требований, генерация тест-кейсов и ревью кода с помощью ИИ',
 }
 
 export default function RootLayout({
@@ -10,7 +10,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru">
-      <body className="bg-slate-50 text-slate-900 min-h-screen">{children}</body>
+      <body className="bg-slate-50 text-slate-900 min-h-screen antialiased">{children}</body>
     </html>
   )
 }
