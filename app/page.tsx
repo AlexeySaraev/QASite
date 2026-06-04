@@ -68,7 +68,7 @@ export default function Home() {
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Нейросеть</label>
             <div className="flex gap-2">
-              {["gemini", "grok"].map((m) => (
+              {["gemini", "llama"].map((m) => (
                 <button
                   key={m}
                   onClick={() => setModel(m)}
@@ -78,7 +78,7 @@ export default function Home() {
                       : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
                   }`}
                 >
-                 {m === "gemini" ? "✨ Gemini" : "🚀 Grok"}
+                 {m === "gemini" ? "✨ Gemini" : "🦙 Llama 3.1"}
                 </button>
               ))}
             </div>
