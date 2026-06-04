@@ -35,16 +35,16 @@ function getSystemPrompt(type: string): string {
   }
 }
 
-// --- GEMINI (ИСПРАВЛЕНО: передача ключа через заголовок) ---
+// --- GEMINI (Исправлено: используется модель из вашего curl) ---
 async function askGemini(systemPrompt: string, userPrompt: string): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("Ключ GEMINI_API_KEY не найден.");
 
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`, {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-goog-api-key': apiKey // Теперь передаем ключ так же, как в вашем curl
+      'X-goog-api-key': apiKey
     },
     body: JSON.stringify({ contents: [{ parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }] })
   });
@@ -60,9 +60,8 @@ async function askGemini(systemPrompt: string, userPrompt: string): Promise<stri
 async function askGigaChat(systemPrompt: string, userPrompt: string): Promise<string> {
   const clientId = process.env.GIGACHAT_CLIENT_ID;
   const clientSecret = process.env.GIGACHAT_CLIENT_SECRET;
-  if (!clientId || !clientSecret) throw new Error("Для GigaChat нужны переменные GIGACHAT_CLIENT_ID и GIGACHAT_CLIENT_SECRET в Netlify.");
+  if (!clientId || !clientSecret) throw new Error("Для GigaChat добавьте переменные GIGACHAT_CLIENT_ID и GIGACHAT_CLIENT_SECRET в Netlify.");
 
-  // 1. Получаем токен
   const tokenRes = await fetch('https://ngw.devices.sberbank.ru:9443/api/v2/oauth', {
     method: 'POST',
     headers: {
@@ -78,7 +77,6 @@ async function askGigaChat(systemPrompt: string, userPrompt: string): Promise<st
   const tokenData = await tokenRes.json();
   const accessToken = tokenData.access_token;
 
-  // 2. Запрос к чату
   const res = await fetch('https://gigachat.devices.sberbank.ru/api/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
@@ -100,7 +98,7 @@ async function askGrok(systemPrompt: string, userPrompt: string): Promise<string
   const res = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: 'grok-2-mini', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] })
+    body: JSON.stringify({ model: 'grok-beta', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] })
   });
   if (!res.ok) { 
     const e = await res.json(); 
