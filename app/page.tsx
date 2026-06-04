@@ -69,7 +69,17 @@ export default function Home() {
                     : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                ⚡ Groq (Llama 3)
+                ⚡ Groq
+              </button>
+              <button
+                onClick={() => setModel("glm")}
+                className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all border ${
+                  model === "glm" 
+                    ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm" 
+                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                🇨🇳 GLM-5.1
               </button>
             </div>
           </div>
