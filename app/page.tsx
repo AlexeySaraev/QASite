@@ -62,14 +62,14 @@ export default function Home() {
                 ✨ Gemini
               </button>
               <button
-                onClick={() => setModel("llama")}
+                onClick={() => setModel("groq")}
                 className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-all border ${
-                  model === "llama" 
+                  model === "groq" 
                     ? "bg-blue-50 border-blue-500 text-blue-700 shadow-sm" 
                     : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                🦙 Llama 3.1
+                ⚡ Groq (Llama 3)
               </button>
             </div>
           </div>
