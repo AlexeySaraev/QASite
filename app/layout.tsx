@@ -1,3 +1,5 @@
+import './globals.css'
+
 export const metadata = {
   title: 'QA AI Assistant',
   description: 'Анализ требований, генерация тест-кейсов и ревью кода с помощью ИИ',
