@@ -66,7 +66,7 @@ async function askGrok(systemPrompt: string, userPrompt: string): Promise<string
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({ 
-      model: 'grok-beta', // Возвращаем grok-beta, так как она базовая
+      model: 'grok-2-mini', // Возвращаем grok-beta, так как она базовая
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] 
     })
   });
