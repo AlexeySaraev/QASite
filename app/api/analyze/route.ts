@@ -19,7 +19,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ result: resultText });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Внутренняя ошибка" }, { status: 500 });
+    // Выводим максимально подробную ошибку
+    let errorMsg = error.message || "Внутренняя ошибка";
+    if (error.cause) errorMsg += ` (Причина: ${JSON.stringify(error.cause)})`;
+    return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
 }
 
@@ -56,29 +59,39 @@ async function askGemini(systemPrompt: string, userPrompt: string): Promise<stri
   return data?.candidates[0]?.content?.parts[0]?.text || "Пустой ответ от Gemini";
 }
 
-// --- GIGACHAT (ОБНОВЛЕНО ПОД AUTHORIZATION KEY) ---
+// --- GIGACHAT (Улучшено) ---
 async function askGigaChat(systemPrompt: string, userPrompt: string): Promise<string> {
   const authKey = process.env.GIGACHAT_API_KEY;
-  if (!authKey) throw new Error("Добавьте ключ GIGACHAT_API_KEY (Authorization key из кабинета Сбера) в Netlify.");
+  if (!authKey) throw new Error("Добавьте ключ GIGACHAT_API_KEY в Netlify.");
 
-  // Генерируем случайный RqUID, который требует Сбер
-  const rqUid = crypto.randomUUID();
+  // Генерируем UUID надежным способом (без crypto.randomUUID, чтобы избежать ошибок Netlify)
+  const rqUid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 
   // 1. Получаем Access Token
-  const tokenRes = await fetch('https://ngw.devices.sberbank.ru:9443/api/v2/oauth', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Accept': 'application/json',
-      'RqUID': rqUid,
-      'Authorization': `Basic ${authKey}` // Используем ваш ключ напрямую
-    },
-    body: 'scope=GIGACHAT_API_PERS'
-  });
+  let tokenRes;
+  try {
+    tokenRes = await fetch('https://ngw.devices.sberbank.ru:9443/api/v2/oauth', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+        'RqUID': rqUid,
+        'Authorization': `Basic ${authKey}`
+      },
+      body: 'scope=GIGACHAT_API_PERS'
+    });
+  } catch (fetchError: any) {
+    // Если fetch падает на этапе соединения (fetch failed)
+    throw new Error(`GigaChat: Не удалось подключиться к серверу Сбера. ${fetchError.message}. Проверьте, нет ли пробелов в ключе.`);
+  }
   
   if (!tokenRes.ok) { 
-    const e = await tokenRes.json(); 
-    throw new Error(`GigaChat Auth Error: ${e.error_description || tokenRes.status}`); 
+    let errText = `Статус: ${tokenRes.status}`;
+    try { const e = await tokenRes.json(); errText = e.error_description || errText; } catch {}
+    throw new Error(`GigaChat Auth Error: ${errText}`); 
   }
   
   const tokenData = await tokenRes.json();
@@ -106,7 +119,7 @@ async function askGigaChat(systemPrompt: string, userPrompt: string): Promise<st
   return data?.choices[0]?.message?.content || "Пустой ответ от GigaChat";
 }
 
-// --- GROK ---
+// --- GROK (Исправлено: новая модель) ---
 async function askGrok(systemPrompt: string, userPrompt: string): Promise<string> {
   const apiKey = process.env.GROK_API_KEY;
   if (!apiKey) throw new Error("Ключ GROK_API_KEY не найден.");
@@ -114,7 +127,10 @@ async function askGrok(systemPrompt: string, userPrompt: string): Promise<string
   const res = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: 'grok-beta', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] })
+    body: JSON.stringify({ 
+      model: 'grok-2-mini', // Заменили grok-beta на актуальную grok-2-mini
+      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] 
+    })
   });
   if (!res.ok) { 
     const e = await res.json(); 
