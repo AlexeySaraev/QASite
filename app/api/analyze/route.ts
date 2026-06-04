@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     switch (model) {
       case 'gemini': resultText = await askGemini(systemPrompt, prompt); break;
       case 'groq': resultText = await askGroq(systemPrompt, prompt); break;
-      case 'glm': resultText = await askDeepSeek(systemPrompt, prompt, taskType); break;
+      case 'deepseek': resultText = await askDeepSeek(systemPrompt, prompt, taskType); break;
       default: return NextResponse.json({ error: "Неизвестная модель" }, { status: 400 });
     }
 
