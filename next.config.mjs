@@ -1,4 +1,10 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+  // Это заставит Next.js использовать относительные пути для всех ресурсов
+  // Это часто помогает, когда приложение "не понимает", что оно работает через прокси
+  assetPrefix: '',
+  // Помогает избежать проблем с путями, если приложение деплоится в подпапку или за прокси
+  trailingSlash: true,
+};
 
 export default nextConfig;
