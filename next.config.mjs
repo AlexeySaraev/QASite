@@ -2,6 +2,5 @@
 const nextConfig = {
   assetPrefix: '',
   trailingSlash: true,
-  generateBuildId: async () => 'build',
 };
 export default nextConfig;
