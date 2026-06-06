@@ -5,7 +5,7 @@ import { X, Copy, Check, Loader2, Zap, Send, AlertTriangle, Terminal, ChevronDow
 
 const MODELS = [
   { id: "gemini", label: "✨ Gemini" },
-  { id: "groq", label: "⚡ Groq" },
+  { id: "grok", label: "⚡ Grok" },
 ];
 
 const TASKS = [
