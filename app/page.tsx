@@ -131,10 +131,10 @@ export default function Home() {
         {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
       </button>
 
-      <main className="relative max-w-3xl mx-auto px-5 py-16 sm:py-24">
+      <main className="relative max-w-3xl mx-auto px-5 py-6 sm:py-8">
 
         {/* Хедер */}
-        <header className="text-center mb-12 qa-rise">
+        <header className="text-center mb-6 qa-rise">
           <h1 className="qa-display qa-title text-5xl sm:text-6xl font-extrabold tracking-tight leading-[1.05]">
             QA AI Assistant
           </h1>
@@ -321,12 +321,12 @@ export default function Home() {
         )}
 
         {/* Подвал */}
-        <footer className="mt-16 text-center qa-rise">
+        <footer className="mt-6 text-center qa-rise">
           <a
             href="https://t.me/Alexey_Saraev"
             target="_blank"
             rel="noopener noreferrer"
-            className="group inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] text-xs text-[var(--muted)] hover:text-[var(--accent-from)] hover:border-[var(--accent-from)]/40 transition-all"
+            className="group inline-flex items-center gap-1.5 text-xs text-[var(--muted)] hover:text-[var(--accent-from)] transition-colors"
           >
             <Send size={12} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             Created by Alexey Saraev
