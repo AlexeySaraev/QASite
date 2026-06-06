@@ -208,9 +208,15 @@ export default function Home() {
                   <X size={13} />
                 </button>
               )}
-              <div className="absolute bottom-2.5 right-3.5 flex items-center gap-3 text-[10px] text-[var(--faint)] select-none pointer-events-none qa-mono">
-                <span className="hidden sm:inline">⌘/Ctrl + Enter</span>
-                <span>{input.length} симв.</span>
+              <div className="absolute bottom-2.5 left-3.5 right-3.5 flex items-center justify-between text-[10px] text-[var(--faint)] select-none pointer-events-none qa-mono">
+                <span className="flex items-center gap-1">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  Избегайте конфиденциальных данных
+                </span>
+                <span className="flex items-center gap-3">
+                  <span className="hidden sm:inline">⌘/Ctrl + Enter</span>
+                  <span>{input.length} симв.</span>
+                </span>
               </div>
             </div>
           </section>
