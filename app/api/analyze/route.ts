@@ -17,7 +17,8 @@ export async function POST(req: Request) {
       : body.model
       ? [body.model]
       : [];
-    models = [...new Set(models.filter(Boolean))]; // без пустых и дублей
+    // без пустых и дублей (Array.from вместо спреда Set — работает при любом target)
+    models = Array.from(new Set(models.filter(Boolean)));
 
     if (!prompt || !taskType || models.length === 0) {
       return NextResponse.json({ error: "Отсутствуют параметры" }, { status: 400 });
@@ -37,23 +38,15 @@ export async function POST(req: Request) {
       })
     );
 
-    // Одна модель — отдаём как раньше (без заголовка), чтобы вид результата не менялся
-    if (results.length === 1) {
-      const r = results[0];
-      if (!r.ok) return NextResponse.json({ error: r.text }, { status: 500 });
-      return NextResponse.json({ result: r.text });
-    }
+    // Возвращаем результат каждой модели отдельным объектом — фронт покажет их в разных блоках
+    const payload = results.map((r) => ({
+      model: r.model,
+      label: MODEL_LABELS[r.model] || r.model,
+      ok: r.ok,
+      text: r.text,
+    }));
 
-    // Несколько моделей — склеиваем с заголовками и разделителями
-    const combined = results
-      .map((r) => {
-        const title = MODEL_LABELS[r.model] || r.model;
-        const bodyText = r.ok ? r.text : `❌ Ошибка: ${r.text}`;
-        return `### ${title}\n\n${bodyText}`;
-      })
-      .join("\n\n────────────────────\n\n");
-
-    return NextResponse.json({ result: combined });
+    return NextResponse.json({ results: payload });
   } catch (error: any) {
     let errorMsg = error.message || "Внутренняя ошибка";
     if (error.cause) errorMsg += ` (Причина: ${JSON.stringify(error.cause)})`;
