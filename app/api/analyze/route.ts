@@ -1,27 +1,73 @@
 import { NextResponse } from 'next/server';
 
+const MODEL_LABELS: Record<string, string> = {
+  gemini: "✨ Gemini",
+  groq: "⚡ Groq",
+  gigachat: "🟢 GigaChat",
+};
+
 export async function POST(req: Request) {
   try {
-    const { prompt, taskType, model } = await req.json();
-    if (!prompt || !taskType || !model) {
+    const body = await req.json();
+    const { prompt, taskType } = body;
+
+    // Поддерживаем и новое поле models (массив), и старое model (строка) — обратная совместимость
+    let models: string[] = Array.isArray(body.models)
+      ? body.models
+      : body.model
+      ? [body.model]
+      : [];
+    models = [...new Set(models.filter(Boolean))]; // без пустых и дублей
+
+    if (!prompt || !taskType || models.length === 0) {
       return NextResponse.json({ error: "Отсутствуют параметры" }, { status: 400 });
     }
 
     const systemPrompt = getSystemPrompt(taskType);
-    let resultText = "";
 
-    switch (model) {
-      case 'gemini': resultText = await askGemini(systemPrompt, prompt); break;
-      case 'groq': resultText = await askGroq(systemPrompt, prompt); break;
-      case 'gigachat': resultText = await askGigaChat(systemPrompt, prompt); break;
-      default: return NextResponse.json({ error: "Неизвестная модель" }, { status: 400 });
+    // Запускаем выбранные модели параллельно. Падение одной не ломает остальные.
+    const results = await Promise.all(
+      models.map(async (model) => {
+        try {
+          const text = await askModel(model, systemPrompt, prompt);
+          return { model, ok: true, text };
+        } catch (e: any) {
+          return { model, ok: false, text: e?.message || "Неизвестная ошибка" };
+        }
+      })
+    );
+
+    // Одна модель — отдаём как раньше (без заголовка), чтобы вид результата не менялся
+    if (results.length === 1) {
+      const r = results[0];
+      if (!r.ok) return NextResponse.json({ error: r.text }, { status: 500 });
+      return NextResponse.json({ result: r.text });
     }
 
-    return NextResponse.json({ result: resultText });
+    // Несколько моделей — склеиваем с заголовками и разделителями
+    const combined = results
+      .map((r) => {
+        const title = MODEL_LABELS[r.model] || r.model;
+        const bodyText = r.ok ? r.text : `❌ Ошибка: ${r.text}`;
+        return `### ${title}\n\n${bodyText}`;
+      })
+      .join("\n\n────────────────────\n\n");
+
+    return NextResponse.json({ result: combined });
   } catch (error: any) {
     let errorMsg = error.message || "Внутренняя ошибка";
     if (error.cause) errorMsg += ` (Причина: ${JSON.stringify(error.cause)})`;
     return NextResponse.json({ error: errorMsg }, { status: 500 });
+  }
+}
+
+// Диспетчер моделей
+async function askModel(model: string, systemPrompt: string, userPrompt: string): Promise<string> {
+  switch (model) {
+    case 'gemini': return askGemini(systemPrompt, userPrompt);
+    case 'groq': return askGroq(systemPrompt, userPrompt);
+    case 'gigachat': return askGigaChat(systemPrompt, userPrompt);
+    default: throw new Error(`Неизвестная модель: ${model}`);
   }
 }
 
@@ -94,34 +140,34 @@ async function askGigaChat(systemPrompt: string, userPrompt: string): Promise<st
   } catch (fetchError: any) {
     throw new Error(`GigaChat: Не удалось подключиться к серверу Сбера. Серверы Render заблокированы Сбером. (${fetchError.message})`);
   }
-  
-  if (!tokenRes.ok) { 
+
+  if (!tokenRes.ok) {
     let errText = `Статус: ${tokenRes.status}`;
     try { const e = await tokenRes.json(); errText = e.error_description || errText; } catch {}
-    throw new Error(`GigaChat Auth Error: ${errText}`); 
+    throw new Error(`GigaChat Auth Error: ${errText}`);
   }
-  
+
   const tokenData = await tokenRes.json();
   const accessToken = tokenData.access_token;
 
   // 2. Запрашиваем ответ у нейросети
   const res = await fetch('https://gigachat.devices.sberbank.ru/api/v1/chat/completions', {
     method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json', 
-      'Authorization': `Bearer ${accessToken}` 
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`
     },
-    body: JSON.stringify({ 
-      model: 'GigaChat', 
-      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] 
+    body: JSON.stringify({
+      model: 'GigaChat',
+      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }]
     })
   });
-  
-  if (!res.ok) { 
-    const e = await res.json(); 
-    throw new Error(`GigaChat: ${e?.error?.message || res.status}`); 
+
+  if (!res.ok) {
+    const e = await res.json();
+    throw new Error(`GigaChat: ${e?.error?.message || res.status}`);
   }
-  
+
   const data = await res.json();
   return data?.choices[0]?.message?.content || "Пустой ответ от GigaChat";
 }
