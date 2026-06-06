@@ -71,7 +71,7 @@ export default function Home() {
                       : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
                   }`}
                 >
-                  {m === "gemini" ? "✨ Gemini" : "⚡ Groq"}
+                  {m === "gemini" ? "✨ Gemini" : "⚡ Grok"}
                 </button>
               ))}
             </div>
