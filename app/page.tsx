@@ -15,6 +15,10 @@ const TASKS = [
 ];
 
 const MODEL_LABEL = (id) => MODELS.find((m) => m.id === id)?.label || id;
+const ORDER = (id) => {
+  const i = MODELS.findIndex((m) => m.id === id);
+  return i === -1 ? 999 : i;
+};
 
 export default function Home() {
   const [input, setInput] = useState("");
@@ -120,7 +124,6 @@ export default function Home() {
               <h3 className="flex items-center gap-2 text-[11px] font-semibold text-[#9fb0ad] mb-3.5 uppercase tracking-[0.14em]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#34d399] shadow-[0_0_8px_#34d399]" />
                 Нейросеть
-                <span className="ml-auto normal-case tracking-normal text-[10px] text-[#5f6b69] font-normal">можно выбрать обе</span>
               </h3>
               <div className="flex gap-2.5">
                 {MODELS.map((m) => {
@@ -210,7 +213,7 @@ export default function Home() {
         {(loading || results.length > 0) && (
           <div className={`mt-7 grid gap-5 ${multi ? "md:grid-cols-2" : "grid-cols-1"}`}>
             {loading
-              ? models.map((id) => (
+              ? models.slice().sort((a, b) => ORDER(a) - ORDER(b)).map((id) => (
                   <div key={id} className="qa-card rounded-2xl overflow-hidden qa-rise">
                     <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-white/[0.02]">
                       <span className="text-xs font-semibold text-[#8a9794] qa-mono">{MODEL_LABEL(id)}</span>
@@ -224,7 +227,7 @@ export default function Home() {
                     </div>
                   </div>
                 ))
-              : results.map((r) => {
+              : results.slice().sort((a, b) => ORDER(a.model) - ORDER(b.model)).map((r) => {
                   const label = r.label || MODEL_LABEL(r.model);
                   const copied = copiedKey === r.model;
                   return (
