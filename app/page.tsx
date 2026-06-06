@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Copy, Check, Loader2, Sparkles, Zap, Send, AlertTriangle } from "lucide-react";
+import { X, Copy, Check, Loader2, Sparkles, Zap, Send, AlertTriangle, Terminal, ChevronDown, RotateCcw } from "lucide-react";
 
 const MODELS = [
   { id: "gemini", label: "✨ Gemini" },
@@ -19,6 +19,14 @@ const ORDER = (id) => {
   const i = MODELS.findIndex((m) => m.id === id);
   return i === -1 ? 999 : i;
 };
+const TASK_LABEL = (id) => TASKS.find((t) => t.id === id)?.label || id;
+
+// Стандартные системные промпты (должны совпадать с фолбэком в /api/analyze)
+const SYSTEM_PROMPTS = {
+  requirements: `Ты — Senior QA Engineer. Проанализируй требования. Найди противоречия, неоднозначности, пропущенные краевые случаи. Дай рекомендации. Форматируй ответ красиво.`,
+  testcases: `Ты — Эксперт по тест-дизайну. Сгенерируй тест-кейсы. Формат: ID, Название, Тип (Позитивный/Негативный/Краевой), Предусловия, Шаги, Ожидаемый результат.`,
+  code: `Ты — QA Automation Engineer & Security Expert. Проанализируй код: найди баги, уязвимости, проблемы производительности. Предложи рефакторинг.`,
+};
 
 export default function Home() {
   const [input, setInput] = useState("");
@@ -28,6 +36,15 @@ export default function Home() {
   const [taskType, setTaskType] = useState("requirements");
   const [loading, setLoading] = useState(false);
   const [copiedKey, setCopiedKey] = useState(null);
+
+  // системный промпт, отдельно для каждого типа задачи (правки сохраняются при переключении)
+  const [prompts, setPrompts] = useState({ ...SYSTEM_PROMPTS });
+  const [showPrompt, setShowPrompt] = useState(false);
+
+  const currentPrompt = prompts[taskType];
+  const promptCustomized = currentPrompt !== SYSTEM_PROMPTS[taskType];
+  const setCurrentPrompt = (v) => setPrompts((p) => ({ ...p, [taskType]: v }));
+  const resetPrompt = () => setPrompts((p) => ({ ...p, [taskType]: SYSTEM_PROMPTS[taskType] }));
 
   const toggleModel = (id) => {
     setModels((prev) =>
@@ -49,7 +66,7 @@ export default function Home() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: input, taskType, models, model: models[0] }),
+        body: JSON.stringify({ prompt: input, taskType, models, model: models[0], systemPrompt: currentPrompt }),
       });
       const data = await res.json();
       if (data.error) setError(data.error);
@@ -152,6 +169,46 @@ export default function Home() {
               </div>
             </div>
           </div>
+        </section>
+
+        {/* Системный промпт — просмотр / редактирование / сброс */}
+        <section className="qa-card rounded-2xl mb-5 qa-rise overflow-hidden" style={{ animationDelay: "0.12s" }}>
+          <button
+            onClick={() => setShowPrompt((v) => !v)}
+            className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-white/[0.02] transition-colors"
+          >
+            <span className="flex items-center gap-2.5">
+              <Terminal size={15} className="text-[#34d399]" />
+              <span className="text-sm font-semibold text-[#c7d0ce]">Системный промпт</span>
+              {promptCustomized && (
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]" title="изменён" />
+              )}
+            </span>
+            <ChevronDown size={18} className={`text-[#8a9794] transition-transform duration-200 ${showPrompt ? "rotate-180" : ""}`} />
+          </button>
+
+          {showPrompt && (
+            <div className="px-6 pb-6">
+              <p className="text-xs text-[#5f6b69] mb-3 leading-relaxed">
+                Промпт для задачи «<span className="text-[#8a9794]">{TASK_LABEL(taskType)}</span>». Отредактируйте под себя — запрос уйдёт с вашей версией.
+              </p>
+              <textarea
+                value={currentPrompt}
+                onChange={(e) => setCurrentPrompt(e.target.value)}
+                className="qa-mono w-full h-44 p-4 rounded-xl bg-white/[0.03] border border-white/10 focus:outline-none focus:border-[#34d399]/50 focus:ring-2 focus:ring-[#34d399]/15 resize-y text-sm text-[#e8edec] leading-relaxed transition-all"
+              />
+              <div className="flex items-center justify-between mt-3">
+                <span className="text-[11px] text-[#5f6b69] qa-mono">{currentPrompt.length} симв.</span>
+                <button
+                  onClick={resetPrompt}
+                  disabled={!promptCustomized}
+                  className="flex items-center gap-1.5 text-xs font-medium text-[#8a9794] hover:text-[#34d399] disabled:opacity-35 disabled:hover:text-[#8a9794] disabled:cursor-default transition-colors"
+                >
+                  <RotateCcw size={13} /> Вернуть стандартный
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Поле ввода */}
