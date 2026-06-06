@@ -28,7 +28,7 @@ const SYSTEM_PROMPTS = {
 };
 
 export default function Home() {
-  const [input, setInput] = useState("");
+  const [inputByTask, setInputByTask] = useState({});
   const [resultsByTask, setResultsByTask] = useState({});
   const [errorByTask, setErrorByTask] = useState({});
   const [models, setModels] = useState(["gemini"]);
@@ -40,6 +40,8 @@ export default function Home() {
 
   const results = resultsByTask[taskType] || [];
   const error = errorByTask[taskType] || "";
+  const input = inputByTask[taskType] || "";
+  const setInput = (v) => setInputByTask((p) => ({ ...p, [taskType]: v }));
 
   const currentPrompt = prompts[taskType];
   const promptEmpty = !currentPrompt.trim();
@@ -77,7 +79,7 @@ export default function Home() {
   };
 
   const handleClear = () => {
-    setInput("");
+    setInputByTask({});
     setResultsByTask({});
     setErrorByTask({});
   };
@@ -438,7 +440,7 @@ export default function Home() {
         .qa-mono    { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 
         .qa-title {
-          font-size: clamp(2rem, 8vw, 3.5rem);
+          font-size: clamp(1.5rem, 5vw, 2.25rem);
           font-weight: 800;
           letter-spacing: -0.03em;
           line-height: 1.05;
