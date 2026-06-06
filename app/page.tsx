@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Copy, Check, Loader2, Zap, Send, AlertTriangle, ChevronRight, RotateCcw } from "lucide-react";
+import { X, Copy, Check, Loader2, Zap, Send, AlertTriangle, ChevronRight, RotateCcw, Download } from "lucide-react";
 
 const MODELS = [
   { id: "gemini", label: "✨ Gemini" },
@@ -85,6 +85,39 @@ export default function Home() {
 
   const handleKeyDown = (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); handleAnalyze(); }
+  };
+
+  const getTimestamp = () => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}`;
+  };
+
+  const handleDownloadTxt = (text) => {
+    const prefix = taskType === "requirements" ? "analysis" : taskType === "testcases" ? "testcases" : "code";
+    const filename = `${prefix}_${getTimestamp()}.txt`;
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadCsv = (text) => {
+    const lines = text.split("\n").filter(Boolean);
+    const rows = lines.map((line) => {
+      // Экранируем поля: оборачиваем в кавычки, внутренние кавычки удваиваем
+      return line.split(/\t|(?<=\|)(?=\S)|^\||\|$/).map((cell) =>
+        `"${cell.trim().replace(/"/g, '""')}"`
+      ).join(",");
+    });
+    const csv = "\uFEFF" + rows.join("\n"); // BOM для Excel
+    const filename = `testcases_${getTimestamp()}.csv`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
   };
 
   const chip = "flex-1 min-h-[44px] flex items-center justify-center gap-1.5 text-center rounded-xl text-sm font-semibold border transition-all duration-200 active:scale-[0.97] leading-tight px-2";
@@ -209,7 +242,7 @@ export default function Home() {
                 </button>
               )}
               <div className="absolute bottom-2.5 left-3.5 right-3.5 flex items-center justify-between text-[10px] text-[var(--faint)] select-none pointer-events-none qa-mono">
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 text-red-400">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                   Избегайте конфиденциальных данных
                 </span>
@@ -270,12 +303,40 @@ export default function Home() {
                             <span className={`h-2 w-2 shrink-0 rounded-full ${r.ok ? "bg-[var(--accent-from)] shadow-[0_0_6px_var(--accent-from)]" : "bg-[var(--error)]"}`} />
                             <span className="text-xs font-semibold text-[var(--text-2)] qa-mono truncate">{label}</span>
                           </div>
-                          <button
-                            onClick={() => handleCopy(r.model, r.text)}
-                            className="flex items-center gap-1 text-xs font-medium text-[var(--muted)] hover:text-[var(--accent-from)] transition-colors shrink-0 ml-2"
-                          >
-                            {copied ? <><Check size={13} /> Скопировано</> : <><Copy size={13} /> Копировать</>}
-                          </button>
+                          {r.ok && (
+                            <div className="flex items-center gap-3 shrink-0 ml-2">
+                              {taskType === "testcases" && (
+                                <button
+                                  onClick={() => handleDownloadCsv(r.text)}
+                                  className="flex items-center gap-1 text-xs font-medium text-[var(--muted)] hover:text-[var(--accent-from)] transition-colors"
+                                  title="Скачать CSV"
+                                >
+                                  <Download size={13} /> CSV
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDownloadTxt(r.text)}
+                                className="flex items-center gap-1 text-xs font-medium text-[var(--muted)] hover:text-[var(--accent-from)] transition-colors"
+                                title="Скачать TXT"
+                              >
+                                <Download size={13} /> TXT
+                              </button>
+                              <button
+                                onClick={() => handleCopy(r.model, r.text)}
+                                className="flex items-center gap-1 text-xs font-medium text-[var(--muted)] hover:text-[var(--accent-from)] transition-colors"
+                              >
+                                {copied ? <><Check size={13} /> Скопировано</> : <><Copy size={13} /> Копировать</>}
+                              </button>
+                            </div>
+                          )}
+                          {!r.ok && (
+                            <button
+                              onClick={() => handleCopy(r.model, r.text)}
+                              className="flex items-center gap-1 text-xs font-medium text-[var(--muted)] hover:text-[var(--accent-from)] transition-colors shrink-0 ml-2"
+                            >
+                              {copied ? <><Check size={13} /> Скопировано</> : <><Copy size={13} /> Копировать</>}
+                            </button>
+                          )}
                         </div>
                         <div className={`qa-mono p-4 sm:p-5 whitespace-pre-wrap text-sm leading-relaxed min-h-[120px] ${r.ok ? "text-[var(--text-2)]" : "text-[var(--error)]"}`}>
                           {r.ok ? r.text : `❌ Ошибка: ${r.text}`}
