@@ -29,14 +29,17 @@ const SYSTEM_PROMPTS = {
 
 export default function Home() {
   const [input, setInput] = useState("");
-  const [results, setResults] = useState([]);
-  const [error, setError] = useState("");
+  const [resultsByTask, setResultsByTask] = useState({});
+  const [errorByTask, setErrorByTask] = useState({});
   const [models, setModels] = useState(["gemini"]);
   const [taskType, setTaskType] = useState("requirements");
   const [loading, setLoading] = useState(false);
   const [copiedKey, setCopiedKey] = useState(null);
   const [prompts, setPrompts] = useState({ ...SYSTEM_PROMPTS });
   const [showPrompt, setShowPrompt] = useState(false);
+
+  const results = resultsByTask[taskType] || [];
+  const error = errorByTask[taskType] || "";
 
   const currentPrompt = prompts[taskType];
   const promptEmpty = !currentPrompt.trim();
@@ -55,8 +58,8 @@ export default function Home() {
   const handleAnalyze = async () => {
     if (!input.trim() || loading) return;
     setLoading(true);
-    setError("");
-    setResults([]);
+    setErrorByTask((p) => ({ ...p, [taskType]: "" }));
+    setResultsByTask((p) => ({ ...p, [taskType]: [] }));
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -64,16 +67,20 @@ export default function Home() {
         body: JSON.stringify({ prompt: input, taskType, models, model: models[0], systemPrompt: currentPrompt.trim() || undefined }),
       });
       const data = await res.json();
-      if (data.error) setError(data.error);
-      else setResults(data.results || []);
+      if (data.error) setErrorByTask((p) => ({ ...p, [taskType]: data.error }));
+      else setResultsByTask((p) => ({ ...p, [taskType]: data.results || [] }));
     } catch {
-      setError("Произошла ошибка сети.");
+      setErrorByTask((p) => ({ ...p, [taskType]: "Произошла ошибка сети." }));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleClear = () => { setInput(""); setResults([]); setError(""); };
+  const handleClear = () => {
+    setInput("");
+    setResultsByTask({});
+    setErrorByTask({});
+  };
 
   const handleCopy = async (key, text) => {
     try {
