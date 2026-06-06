@@ -1,144 +1,146 @@
 "use client";
 
-import { useState } from "react";
-import { X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Sun, Moon } from "lucide-react";
 
 export default function Home() {
   const [input, setInput] = useState("");
-  const [result, setResult] = useState("");
-  const [model, setModel] = useState("gemini");
+  const [results, setResults] = useState<{ model: string; result: string }[]>([]);
+  const [selectedModels, setSelectedModels] = useState<string[]>(["gemini"]);
   const [taskType, setTaskType] = useState("requirements");
   const [loading, setLoading] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
 
+  // ========================
+  // Theme toggle
+  // ========================
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
+
+  // ========================
+  // Model selection
+  // ========================
+  const toggleModel = (model: string) => {
+    if (selectedModels.includes(model)) {
+      setSelectedModels(selectedModels.filter((m) => m !== model));
+    } else {
+      if (selectedModels.length < 2) {
+        setSelectedModels([...selectedModels, model]);
+      }
+    }
+  };
+
+  // ========================
+  // Analyze
+  // ========================
   const handleAnalyze = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || selectedModels.length === 0) return;
 
     setLoading(true);
-    setResult("⏳ ИИ обрабатывает запрос...");
+    setResults([]);
 
     try {
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: input, taskType, model }),
-      });
+      const responses = await Promise.all(
+        selectedModels.map(async (model) => {
+          const res = await fetch("/api/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: input, taskType, model }),
+          });
 
-      const data = await res.json();
+          const data = await res.json();
 
-      if (data.error) {
-        setResult(`❌ Ошибка: ${data.error}`);
-      } else {
-        setResult(data.result);
-      }
+          return {
+            model,
+            result: data.error ? `❌ ${data.error}` : data.result,
+          };
+        })
+      );
+
+      setResults(responses);
     } catch {
-      setResult("❌ Произошла ошибка сети.");
+      setResults([{ model: "error", result: "Ошибка сети." }]);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-16">
-      
-      {/* Заголовок */}
-      <div className="text-center mb-14">
-        <h1 className="text-5xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-blue-600 via-violet-600 to-purple-600 text-transparent bg-clip-text">
+    <main className="max-w-6xl mx-auto px-4 py-16 dark:bg-slate-900 min-h-screen transition-colors">
+
+      {/* Header */}
+      <div className="flex justify-between items-center mb-12">
+        <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">
           QA AI Assistant
         </h1>
-        <p className="text-lg text-slate-500">
-          Инструмент для анализа требований и генерации тест-кейсов
-        </p>
+
+        <button
+          onClick={() => setDarkMode(!darkMode)}
+          className="px-4 py-2 rounded-xl border bg-slate-100 dark:bg-slate-800 dark:text-white"
+        >
+          {darkMode ? "☀ Светлая" : "🌙 Тёмная"}
+        </button>
       </div>
 
-      {/* Блок настроек */}
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 mb-8">
-        
-        <div className="grid md:grid-cols-2 gap-10">
-          
-          {/* Модель */}
-          <div>
-            <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">
-              Нейросеть
-            </h3>
-            <div className="flex gap-3">
-              {["gemini", "groq"].map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setModel(m)}
-                  className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all border ${
-                    model === m
-                      ? "bg-blue-600 text-white border-blue-600 shadow-md"
-                      : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
-                  }`}
-                >
-                  {m === "gemini" ? "✨ Gemini" : "⚡ Grok"}
-                </button>
-              ))}
-            </div>
-          </div>
+      {/* Models */}
+      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow p-6 mb-8 border dark:border-slate-700">
+        <h3 className="text-sm font-semibold mb-4 text-slate-700 dark:text-slate-300 uppercase">
+          Выберите до 2 моделей
+        </h3>
 
-          {/* Тип задачи */}
-          <div>
-            <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">
-              Тип задачи
-            </h3>
-            <div className="flex gap-3">
-              {[
-                { id: "requirements", label: "📋 Анализ" },
-                { id: "testcases", label: "🧪 Тест-кейсы" },
-                { id: "code", label: "💻 Код" },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setTaskType(tab.id)}
-                  className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all border ${
-                    taskType === tab.id
-                      ? "bg-violet-600 text-white border-violet-600 shadow-md"
-                      : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="flex gap-4">
+          {["gemini", "groq"].map((m) => (
+            <button
+              key={m}
+              onClick={() => toggleModel(m)}
+              className={`flex-1 py-3 rounded-xl font-semibold transition ${
+                selectedModels.includes(m)
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-100 dark:bg-slate-700 dark:text-white"
+              }`}
+            >
+              {m === "gemini" ? "✨ Gemini" : "⚡ Groq"}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Поле ввода */}
-      <div className="relative mb-8">
-        <textarea
-          placeholder="Вставьте требования или код..."
-          className="w-full h-56 p-5 pr-14 bg-white border border-slate-200 rounded-3xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y text-sm"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-        />
+      {/* Input */}
+      <textarea
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        placeholder="Введите текст..."
+        className="w-full h-56 p-5 rounded-3xl border bg-white dark:bg-slate-800 dark:text-white dark:border-slate-700 mb-8 resize-y"
+      />
 
-        {input && (
-          <button
-            onClick={() => setInput("")}
-            className="absolute top-4 right-4 bg-slate-100 hover:bg-slate-200 p-2 rounded-full transition"
-          >
-            <X size={18} />
-          </button>
-        )}
-      </div>
-
-      {/* Кнопка запуска */}
+      {/* Run */}
       <button
         onClick={handleAnalyze}
-        disabled={loading || !input.trim()}
-        className="w-full py-4 rounded-3xl text-lg font-bold bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white shadow-xl transition-all disabled:opacity-60"
+        disabled={loading}
+        className="w-full py-4 rounded-3xl bg-gradient-to-r from-blue-600 to-violet-600 text-white font-bold shadow-xl mb-10"
       >
-        {loading ? "Анализирую..." : "🚀 Запустить анализ"}
+        {loading ? "Анализ..." : "🚀 Запустить"}
       </button>
 
-      {/* Результат */}
-      {result && (
-        <div className="mt-10 bg-white rounded-3xl shadow-sm border border-slate-200 p-8 whitespace-pre-wrap text-sm leading-relaxed">
-          {result}
-        </div>
-      )}
+      {/* Results */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {results.map((r, index) => (
+          <div
+            key={index}
+            className="bg-white dark:bg-slate-800 rounded-3xl p-6 border dark:border-slate-700 whitespace-pre-wrap text-sm"
+          >
+            <h4 className="font-bold mb-3">
+              {r.model === "gemini" ? "✨ Gemini" : "⚡ Groq"}
+            </h4>
+            {r.result}
+          </div>
+        ))}
+      </div>
     </main>
   );
 }
