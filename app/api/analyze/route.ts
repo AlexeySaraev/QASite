@@ -24,7 +24,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Отсутствуют параметры" }, { status: 400 });
     }
 
-    const systemPrompt = getSystemPrompt(taskType);
+    const systemPrompt =
+      typeof body.systemPrompt === "string" && body.systemPrompt.trim()
+        ? body.systemPrompt
+        : getSystemPrompt(taskType);
 
     // Запускаем выбранные модели параллельно. Падение одной не ломает остальные.
     const results = await Promise.all(
