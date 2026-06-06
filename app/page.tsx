@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { X, Copy, Check, Loader2, Zap, Send, AlertTriangle, Terminal, ChevronDown, RotateCcw } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Copy, Check, Loader2, Zap, Send, AlertTriangle, Terminal, ChevronDown, RotateCcw, Sun, Moon } from "lucide-react";
 
 const MODELS = [
   { id: "gemini", label: "✨ Gemini" },
@@ -36,10 +36,22 @@ export default function Home() {
   const [taskType, setTaskType] = useState("requirements");
   const [loading, setLoading] = useState(false);
   const [copiedKey, setCopiedKey] = useState(null);
+  const [theme, setTheme] = useState("dark"); // 'dark' | 'light'
 
   // системный промпт, отдельно для каждого типа задачи (правки сохраняются при переключении)
   const [prompts, setPrompts] = useState({ ...SYSTEM_PROMPTS });
   const [showPrompt, setShowPrompt] = useState(false);
+
+  // загрузка/сохранение выбранной темы
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("qa-theme");
+      if (saved === "light" || saved === "dark") setTheme(saved);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem("qa-theme", theme); } catch {}
+  }, [theme]);
 
   const currentPrompt = prompts[taskType];
   const promptCustomized = currentPrompt !== SYSTEM_PROMPTS[taskType];
@@ -106,24 +118,31 @@ export default function Home() {
   const chipOn =
     "text-[#04140f] bg-gradient-to-br from-[#34d399] to-[#2dd4bf] border-transparent shadow-[0_10px_30px_-10px_rgba(45,212,191,0.7)]";
   const chipOff =
-    "text-[#8a9794] bg-white/[0.03] border-white/10 hover:text-[#e8edec] hover:bg-white/[0.06] hover:border-white/20";
+    "text-[var(--muted)] bg-[var(--surface)] border-[var(--border)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] hover:border-[var(--border-strong)]";
 
-  // несколько блоков выводим в 2 колонки на широких экранах — удобно сравнивать
   const multi = results.length > 1 || (loading && models.length > 1);
 
   return (
-    <div className="qa-root min-h-screen w-full">
+    <div className={`qa-root ${theme === "light" ? "qa-light" : ""} min-h-screen w-full`}>
       <div className="qa-bg" />
       <div className="qa-grid" />
+
+      {/* Переключатель темы */}
+      <button
+        onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+        aria-label="Переключить тему"
+        title={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
+        className="qa-card fixed top-4 right-4 z-20 h-10 w-10 flex items-center justify-center rounded-full text-[var(--muted)] hover:text-[#34d399] transition-colors"
+      >
+        {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+      </button>
 
       <main className="relative max-w-3xl mx-auto px-5 py-16 sm:py-24">
 
         {/* Хедер */}
         <header className="text-center mb-12 qa-rise">
-          <h1 className="qa-display text-5xl sm:text-6xl font-extrabold tracking-tight leading-[1.05]">
-            <span className="bg-gradient-to-br from-white via-[#d9fbef] to-[#7fe9c9] text-transparent bg-clip-text">
-              QA AI Assistant
-            </span>
+          <h1 className="qa-display qa-title text-5xl sm:text-6xl font-extrabold tracking-tight leading-[1.05]">
+            QA AI Assistant
           </h1>
         </header>
 
@@ -131,7 +150,7 @@ export default function Home() {
         <section className="qa-card rounded-2xl p-6 sm:p-7 mb-5 qa-rise" style={{ animationDelay: "0.08s" }}>
           <div className="grid sm:grid-cols-2">
             <div className="sm:pr-7">
-              <h3 className="flex items-center gap-2 text-[11px] font-semibold text-[#9fb0ad] mb-3.5 uppercase tracking-[0.14em]">
+              <h3 className="flex items-center gap-2 text-[11px] font-semibold text-[var(--muted)] mb-3.5 uppercase tracking-[0.14em]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#34d399] shadow-[0_0_8px_#34d399]" />
                 Выберите модель
               </h3>
@@ -148,8 +167,8 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="sm:pl-7 sm:border-l border-white/10 mt-6 sm:mt-0 pt-6 sm:pt-0 border-t sm:border-t-0">
-              <h3 className="flex items-center gap-2 text-[11px] font-semibold text-[#9fb0ad] mb-3.5 uppercase tracking-[0.14em]">
+            <div className="sm:pl-7 sm:border-l border-[var(--border)] mt-6 sm:mt-0 pt-6 sm:pt-0 border-t sm:border-t-0">
+              <h3 className="flex items-center gap-2 text-[11px] font-semibold text-[var(--muted)] mb-3.5 uppercase tracking-[0.14em]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#2dd4bf] shadow-[0_0_8px_#2dd4bf]" />
                 Тип задачи
               </h3>
@@ -168,34 +187,34 @@ export default function Home() {
         <section className="qa-card rounded-2xl mb-5 qa-rise overflow-hidden" style={{ animationDelay: "0.12s" }}>
           <button
             onClick={() => setShowPrompt((v) => !v)}
-            className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-white/[0.02] transition-colors"
+            className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-[var(--surface-faint)] transition-colors"
           >
             <span className="flex items-center gap-2.5">
               <Terminal size={15} className="text-[#34d399]" />
-              <span className="text-sm font-semibold text-[#c7d0ce]">Системный промпт</span>
+              <span className="text-sm font-semibold text-[var(--text-2)]">Системный промпт</span>
               {promptCustomized && (
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]" title="изменён" />
               )}
             </span>
-            <ChevronDown size={18} className={`text-[#8a9794] transition-transform duration-200 ${showPrompt ? "rotate-180" : ""}`} />
+            <ChevronDown size={18} className={`text-[var(--muted)] transition-transform duration-200 ${showPrompt ? "rotate-180" : ""}`} />
           </button>
 
           {showPrompt && (
             <div className="px-6 pb-6">
-              <p className="text-xs text-[#5f6b69] mb-3 leading-relaxed">
-                Промпт для задачи «<span className="text-[#8a9794]">{TASK_LABEL(taskType)}</span>». Отредактируйте под себя — запрос уйдёт с вашей версией.
+              <p className="text-xs text-[var(--faint)] mb-3 leading-relaxed">
+                Промпт для задачи «<span className="text-[var(--muted)]">{TASK_LABEL(taskType)}</span>». Отредактируйте под себя — запрос уйдёт с вашей версией.
               </p>
               <textarea
                 value={currentPrompt}
                 onChange={(e) => setCurrentPrompt(e.target.value)}
-                className="qa-mono w-full h-44 p-4 rounded-xl bg-white/[0.03] border border-white/10 focus:outline-none focus:border-[#34d399]/50 focus:ring-2 focus:ring-[#34d399]/15 resize-y text-sm text-[#e8edec] leading-relaxed transition-all"
+                className="qa-mono w-full h-44 p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] focus:outline-none focus:border-[#34d399]/50 focus:ring-2 focus:ring-[#34d399]/15 resize-y text-sm text-[var(--text)] leading-relaxed transition-all"
               />
               <div className="flex items-center justify-between mt-3">
-                <span className="text-[11px] text-[#5f6b69] qa-mono">{currentPrompt.length} симв.</span>
+                <span className="text-[11px] text-[var(--faint)] qa-mono">{currentPrompt.length} симв.</span>
                 <button
                   onClick={resetPrompt}
                   disabled={!promptCustomized}
-                  className="flex items-center gap-1.5 text-xs font-medium text-[#8a9794] hover:text-[#34d399] disabled:opacity-35 disabled:hover:text-[#8a9794] disabled:cursor-default transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted)] hover:text-[#34d399] disabled:opacity-35 disabled:hover:text-[var(--muted)] disabled:cursor-default transition-colors"
                 >
                   <RotateCcw size={13} /> Вернуть стандартный
                 </button>
@@ -209,7 +228,7 @@ export default function Home() {
           <div className="relative">
             <textarea
               placeholder="Добавьте текст или код…"
-              className="qa-mono w-full h-56 p-4 pr-12 bg-transparent rounded-xl focus:outline-none resize-y text-sm text-[#e8edec] placeholder:text-[#5f6b69] leading-relaxed"
+              className="qa-mono w-full h-56 p-4 pr-12 bg-transparent rounded-xl focus:outline-none resize-y text-sm text-[var(--text)] placeholder:text-[var(--faint)] leading-relaxed"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -219,12 +238,12 @@ export default function Home() {
                 onClick={handleClear}
                 title="Очистить"
                 aria-label="Очистить поле"
-                className="absolute top-3 right-3 h-7 w-7 flex items-center justify-center rounded-lg bg-white/[0.06] text-[#8a9794] hover:bg-white/[0.12] hover:text-white transition-all"
+                className="absolute top-3 right-3 h-7 w-7 flex items-center justify-center rounded-lg bg-[var(--surface-2)] text-[var(--muted)] hover:bg-[var(--surface-3)] hover:text-[var(--text)] transition-all"
               >
                 <X size={15} />
               </button>
             )}
-            <div className="absolute bottom-3 right-4 flex items-center gap-3 text-[11px] text-[#5f6b69] select-none pointer-events-none qa-mono">
+            <div className="absolute bottom-3 right-4 flex items-center gap-3 text-[11px] text-[var(--faint)] select-none pointer-events-none qa-mono">
               <span className="hidden sm:inline">⌘/Ctrl + Enter</span>
               <span>{input.length} симв.</span>
             </div>
@@ -251,9 +270,9 @@ export default function Home() {
           )}
         </button>
 
-        {/* Общая ошибка (например, нет параметров) */}
+        {/* Общая ошибка */}
         {error && (
-          <div className="mt-7 qa-card rounded-2xl p-5 flex items-start gap-3 text-sm text-[#f7a8a8] qa-rise">
+          <div className="mt-7 qa-card rounded-2xl p-5 flex items-start gap-3 text-sm text-[var(--error)] qa-rise">
             <AlertTriangle size={18} className="mt-0.5 shrink-0" />
             <span className="qa-mono leading-relaxed">{error}</span>
           </div>
@@ -265,15 +284,15 @@ export default function Home() {
             {loading
               ? models.slice().sort((a, b) => ORDER(a) - ORDER(b)).map((id) => (
                   <div key={id} className="qa-card rounded-2xl overflow-hidden qa-rise">
-                    <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-white/[0.02]">
-                      <span className="text-xs font-semibold text-[#8a9794] qa-mono">{MODEL_LABEL(id)}</span>
+                    <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] bg-[var(--surface-faint)]">
+                      <span className="text-xs font-semibold text-[var(--muted)] qa-mono">{MODEL_LABEL(id)}</span>
                       <Loader2 size={14} className="animate-spin text-[#34d399]" />
                     </div>
                     <div className="p-5 sm:p-6 space-y-3 animate-pulse">
-                      <div className="h-3 rounded bg-white/[0.06] w-5/6" />
-                      <div className="h-3 rounded bg-white/[0.06] w-full" />
-                      <div className="h-3 rounded bg-white/[0.06] w-2/3" />
-                      <div className="h-3 rounded bg-white/[0.06] w-3/4" />
+                      <div className="h-3 rounded bg-[var(--surface-2)] w-5/6" />
+                      <div className="h-3 rounded bg-[var(--surface-2)] w-full" />
+                      <div className="h-3 rounded bg-[var(--surface-2)] w-2/3" />
+                      <div className="h-3 rounded bg-[var(--surface-2)] w-3/4" />
                     </div>
                   </div>
                 ))
@@ -282,14 +301,14 @@ export default function Home() {
                   const copied = copiedKey === r.model;
                   return (
                     <div key={r.model} className="qa-card rounded-2xl overflow-hidden qa-rise flex flex-col">
-                      <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-white/[0.02]">
+                      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] bg-[var(--surface-faint)]">
                         <div className="flex items-center gap-2">
                           <span className={`h-2 w-2 rounded-full ${r.ok ? "bg-[#28c840] shadow-[0_0_8px_#28c840]" : "bg-[#ff5f57] shadow-[0_0_8px_#ff5f57]"}`} />
-                          <span className="text-xs font-semibold text-[#c7d0ce] qa-mono">{label}</span>
+                          <span className="text-xs font-semibold text-[var(--text-2)] qa-mono">{label}</span>
                         </div>
                         <button
                           onClick={() => handleCopy(r.model, r.text)}
-                          className="flex items-center gap-1.5 text-xs font-medium text-[#8a9794] hover:text-[#34d399] transition-colors"
+                          className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted)] hover:text-[#34d399] transition-colors"
                         >
                           {copied ? (
                             <>
@@ -302,7 +321,7 @@ export default function Home() {
                           )}
                         </button>
                       </div>
-                      <div className={`qa-mono p-5 sm:p-6 whitespace-pre-wrap text-sm leading-relaxed min-h-[140px] ${r.ok ? "text-[#d7dedc]" : "text-[#f7a8a8]"}`}>
+                      <div className={`qa-mono p-5 sm:p-6 whitespace-pre-wrap text-sm leading-relaxed min-h-[140px] ${r.ok ? "text-[var(--text-2)]" : "text-[var(--error)]"}`}>
                         {r.ok ? r.text : `❌ Ошибка: ${r.text}`}
                       </div>
                     </div>
@@ -317,7 +336,7 @@ export default function Home() {
             href="https://t.me/Alexey_Saraev"
             target="_blank"
             rel="noopener noreferrer"
-            className="group inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-white/10 bg-white/[0.03] text-xs text-[#8a9794] hover:text-[#34d399] hover:border-[#34d399]/40 transition-all"
+            className="group inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] text-xs text-[var(--muted)] hover:text-[#34d399] hover:border-[#34d399]/40 transition-all"
           >
             <Send size={12} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             Created by Alexey Saraev
@@ -328,38 +347,95 @@ export default function Home() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
+        /* ── Тёмная тема (по умолчанию) ── */
         .qa-root {
+          --bg: #07090a;
+          --text: #e8edec;
+          --text-2: #c7d0ce;
+          --muted: #8a9794;
+          --faint: #5f6b69;
+          --error: #f7a8a8;
+          --card-bg: rgba(255,255,255,0.035);
+          --card-border: rgba(255,255,255,0.09);
+          --border: rgba(255,255,255,0.10);
+          --border-strong: rgba(255,255,255,0.20);
+          --surface: rgba(255,255,255,0.03);
+          --surface-2: rgba(255,255,255,0.06);
+          --surface-3: rgba(255,255,255,0.12);
+          --surface-faint: rgba(255,255,255,0.02);
+          --grid: rgba(255,255,255,0.022);
+          --glow1: rgba(52,211,153,0.16);
+          --glow2: rgba(45,212,191,0.13);
+          --card-shadow: 0 24px 60px -30px rgba(0,0,0,0.7);
+          --card-inset: inset 0 1px 0 rgba(255,255,255,0.04);
+          --title-grad: linear-gradient(135deg, #ffffff, #d9fbef, #7fe9c9);
+
           font-family: 'Hanken Grotesk', system-ui, sans-serif;
-          color: #e8edec;
-          background: #07090a;
+          color: var(--text);
+          background: var(--bg);
           -webkit-font-smoothing: antialiased;
+          transition: background 0.3s ease, color 0.3s ease;
         }
+
+        /* ── Светлая тема ── */
+        .qa-root.qa-light {
+          --bg: #eef3f1;
+          --text: #0e1a18;
+          --text-2: #2f3d3a;
+          --muted: #5d6b68;
+          --faint: #93a09c;
+          --error: #b91c1c;
+          --card-bg: rgba(255,255,255,0.72);
+          --card-border: rgba(2,20,16,0.08);
+          --border: rgba(2,20,16,0.10);
+          --border-strong: rgba(2,20,16,0.18);
+          --surface: rgba(2,20,16,0.035);
+          --surface-2: rgba(2,20,16,0.06);
+          --surface-3: rgba(2,20,16,0.10);
+          --surface-faint: rgba(2,20,16,0.02);
+          --grid: rgba(2,20,16,0.05);
+          --glow1: rgba(52,211,153,0.22);
+          --glow2: rgba(45,212,191,0.18);
+          --card-shadow: 0 24px 60px -34px rgba(2,30,24,0.22);
+          --card-inset: inset 0 1px 0 rgba(255,255,255,0.6);
+          --title-grad: linear-gradient(135deg, #0f766e, #0d9488, #059669);
+        }
+
         .qa-display { font-family: 'Bricolage Grotesque', sans-serif; }
         .qa-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+        .qa-title {
+          background-image: var(--title-grad);
+          -webkit-background-clip: text;
+                  background-clip: text;
+          color: transparent;
+        }
 
         .qa-bg {
           position: fixed; inset: 0; z-index: 0; pointer-events: none;
           background:
-            radial-gradient(62% 48% at 18% -4%, rgba(52,211,153,0.16), transparent 70%),
-            radial-gradient(54% 50% at 96% 104%, rgba(45,212,191,0.13), transparent 70%),
-            #07090a;
+            radial-gradient(62% 48% at 18% -4%, var(--glow1), transparent 70%),
+            radial-gradient(54% 50% at 96% 104%, var(--glow2), transparent 70%),
+            var(--bg);
+          transition: background 0.3s ease;
         }
         .qa-grid {
           position: fixed; inset: 0; z-index: 0; pointer-events: none;
           background-image:
-            linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+            linear-gradient(var(--grid) 1px, transparent 1px),
+            linear-gradient(90deg, var(--grid) 1px, transparent 1px);
           background-size: 46px 46px;
           -webkit-mask-image: radial-gradient(ellipse 78% 58% at 50% 0%, #000 30%, transparent 76%);
                   mask-image: radial-gradient(ellipse 78% 58% at 50% 0%, #000 30%, transparent 76%);
         }
 
         .qa-card {
-          background: rgba(255,255,255,0.035);
-          border: 1px solid rgba(255,255,255,0.09);
+          background: var(--card-bg);
+          border: 1px solid var(--card-border);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
-          box-shadow: 0 24px 60px -30px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04);
+          box-shadow: var(--card-shadow), var(--card-inset);
+          transition: background 0.3s ease, border-color 0.3s ease;
         }
 
         @keyframes qa-rise {
