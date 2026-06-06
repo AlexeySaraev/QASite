@@ -12,7 +12,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru">
-      <body className="bg-slate-50 text-slate-900 min-h-screen antialiased">{children}</body>
+      <body className="bg-slate-50 text-slate-900 min-h-screen antialiased" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   )
 }
