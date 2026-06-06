@@ -110,7 +110,7 @@ export default function Home() {
   const chip =
     "flex-1 min-h-[50px] flex items-center justify-center gap-1.5 text-center rounded-xl text-sm font-semibold border transition-all duration-200 active:scale-[0.97] leading-tight px-2";
   const chipOn =
-    "text-[var(--accent-fg)] bg-[var(--accent)] border-transparent shadow-[var(--accent-shadow)]";
+    "text-[var(--accent-fg)] bg-gradient-to-br from-[var(--accent-from)] to-[var(--accent-to)] border-transparent shadow-[var(--accent-shadow)]";
   const chipOff =
     "text-[var(--muted)] bg-[var(--surface)] border-[var(--border)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] hover:border-[var(--border-strong)]";
 
@@ -126,7 +126,7 @@ export default function Home() {
         onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
         aria-label="Переключить тему"
         title={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
-        className="qa-card fixed top-4 right-4 z-20 h-10 w-10 flex items-center justify-center rounded-full text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+        className="qa-card fixed top-4 right-4 z-20 h-10 w-10 flex items-center justify-center rounded-full text-[var(--muted)] hover:text-[var(--accent-from)] transition-colors"
       >
         {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
       </button>
@@ -184,10 +184,10 @@ export default function Home() {
             className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-[var(--surface-faint)] transition-colors"
           >
             <span className="flex items-center gap-2.5">
-              <Terminal size={15} className="text-[var(--text)]" />
+              <Terminal size={15} className="text-[var(--accent-from)]" />
               <span className="text-sm font-semibold text-[var(--text-2)]">Системный промпт</span>
               {promptCustomized && (
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--text)] opacity-60" title="изменён" />
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]" title="изменён" />
               )}
             </span>
             <ChevronDown size={18} className={`text-[var(--muted)] transition-transform duration-200 ${showPrompt ? "rotate-180" : ""}`} />
@@ -201,14 +201,14 @@ export default function Home() {
               <textarea
                 value={currentPrompt}
                 onChange={(e) => setCurrentPrompt(e.target.value)}
-                className="qa-mono w-full h-44 p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] focus:outline-none focus:border-[var(--border-strong)] focus:ring-2 focus:ring-[var(--border)] resize-y text-sm text-[var(--text)] leading-relaxed transition-all"
+                className="qa-mono w-full h-44 p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] focus:outline-none focus:border-[var(--accent-from)]/50 focus:ring-2 focus:ring-[var(--accent-from)]/15 resize-y text-sm text-[var(--text)] leading-relaxed transition-all"
               />
               <div className="flex items-center justify-between mt-3">
                 <span className="text-[11px] text-[var(--faint)] qa-mono">{currentPrompt.length} симв.</span>
                 <button
                   onClick={resetPrompt}
                   disabled={!promptCustomized}
-                  className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted)] hover:text-[var(--text)] disabled:opacity-35 disabled:hover:text-[var(--muted)] disabled:cursor-default transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted)] hover:text-[var(--accent-from)] disabled:opacity-35 disabled:hover:text-[var(--muted)] disabled:cursor-default transition-colors"
                 >
                   <RotateCcw size={13} /> Вернуть стандартный
                 </button>
@@ -280,7 +280,7 @@ export default function Home() {
                   <div key={id} className="qa-card rounded-2xl overflow-hidden qa-rise">
                     <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] bg-[var(--surface-faint)]">
                       <span className="text-xs font-semibold text-[var(--muted)] qa-mono">{MODEL_LABEL(id)}</span>
-                      <Loader2 size={14} className="animate-spin text-[var(--text)]" />
+                      <Loader2 size={14} className="animate-spin text-[var(--accent-from)]" />
                     </div>
                     <div className="p-5 sm:p-6 space-y-3 animate-pulse">
                       <div className="h-3 rounded bg-[var(--surface-2)] w-5/6" />
@@ -297,12 +297,12 @@ export default function Home() {
                     <div key={r.model} className="qa-card rounded-2xl overflow-hidden qa-rise flex flex-col">
                       <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] bg-[var(--surface-faint)]">
                         <div className="flex items-center gap-2">
-                          <span className={`h-2 w-2 rounded-full ${r.ok ? "bg-[var(--text)] opacity-80" : "bg-[var(--error)]"}`} />
+                          <span className={`h-2 w-2 rounded-full ${r.ok ? "bg-[#22d3ee] shadow-[0_0_8px_#22d3ee]" : "bg-[var(--error)]"}`} />
                           <span className="text-xs font-semibold text-[var(--text-2)] qa-mono">{label}</span>
                         </div>
                         <button
                           onClick={() => handleCopy(r.model, r.text)}
-                          className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+                          className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted)] hover:text-[var(--accent-from)] transition-colors"
                         >
                           {copied ? (
                             <><Check size={14} /> Скопировано</>
@@ -326,7 +326,7 @@ export default function Home() {
             href="https://t.me/Alexey_Saraev"
             target="_blank"
             rel="noopener noreferrer"
-            className="group inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] text-xs text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)] transition-all"
+            className="group inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] text-xs text-[var(--muted)] hover:text-[var(--accent-from)] hover:border-[var(--accent-from)]/40 transition-all"
           >
             <Send size={12} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             Created by Alexey Saraev
@@ -337,33 +337,35 @@ export default function Home() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
-        /* ── Тёмная тема (по умолчанию) ── */
+        /* ── Тёмная тема — Arctic ── */
         .qa-root {
-          --bg: #09090b;
-          --text: #f4f4f5;
-          --text-2: #d4d4d8;
-          --muted: #71717a;
-          --faint: #3f3f46;
+          --bg: #020e12;
+          --text: #e0f7fa;
+          --text-2: #b2ebf2;
+          --muted: #4d7c87;
+          --faint: #1e3a42;
           --error: #fca5a5;
-          --card-bg: rgba(255,255,255,0.04);
-          --card-border: rgba(255,255,255,0.10);
-          --border: rgba(255,255,255,0.10);
-          --border-strong: rgba(255,255,255,0.28);
-          --surface: rgba(255,255,255,0.03);
-          --surface-2: rgba(255,255,255,0.07);
-          --surface-3: rgba(255,255,255,0.13);
-          --surface-faint: rgba(255,255,255,0.02);
-          --grid: rgba(255,255,255,0.03);
-          --glow1: rgba(255,255,255,0.04);
-          --glow2: rgba(255,255,255,0.025);
-          --card-shadow: 0 24px 60px -30px rgba(0,0,0,0.85);
-          --card-inset: inset 0 1px 0 rgba(255,255,255,0.07);
-          --title-grad: linear-gradient(135deg, #ffffff 0%, #a1a1aa 60%, #52525b 100%);
 
-          /* Акцент — белый */
-          --accent: #ffffff;
-          --accent-fg: #09090b;
-          --accent-shadow: 0 10px 30px -10px rgba(255,255,255,0.3);
+          --card-bg: rgba(6,182,212,0.04);
+          --card-border: rgba(6,182,212,0.12);
+          --border: rgba(6,182,212,0.12);
+          --border-strong: rgba(6,182,212,0.30);
+          --surface: rgba(6,182,212,0.04);
+          --surface-2: rgba(6,182,212,0.08);
+          --surface-3: rgba(6,182,212,0.14);
+          --surface-faint: rgba(6,182,212,0.02);
+
+          --grid: rgba(6,182,212,0.06);
+          --glow1: rgba(6,182,212,0.12);
+          --glow2: rgba(2,132,199,0.10);
+          --card-shadow: 0 24px 60px -30px rgba(0,0,0,0.85);
+          --card-inset: inset 0 1px 0 rgba(6,182,212,0.08);
+          --title-grad: linear-gradient(135deg, #ffffff 0%, #cffafe 45%, #22d3ee 100%);
+
+          --accent-from: #06b6d4;
+          --accent-to: #0284c7;
+          --accent-fg: #021018;
+          --accent-shadow: 0 10px 30px -10px rgba(6,182,212,0.65);
 
           font-family: 'Hanken Grotesk', system-ui, sans-serif;
           color: var(--text);
@@ -372,33 +374,35 @@ export default function Home() {
           transition: background 0.3s ease, color 0.3s ease;
         }
 
-        /* ── Светлая тема ── */
+        /* ── Светлая тема — Arctic ── */
         .qa-root.qa-light {
-          --bg: #fafafa;
-          --text: #09090b;
-          --text-2: #27272a;
-          --muted: #71717a;
-          --faint: #a1a1aa;
+          --bg: #f0fbff;
+          --text: #0a1f26;
+          --text-2: #164e63;
+          --muted: #2e7d9e;
+          --faint: #7dbfcf;
           --error: #b91c1c;
-          --card-bg: rgba(255,255,255,0.85);
-          --card-border: rgba(0,0,0,0.08);
-          --border: rgba(0,0,0,0.09);
-          --border-strong: rgba(0,0,0,0.22);
-          --surface: rgba(0,0,0,0.03);
-          --surface-2: rgba(0,0,0,0.055);
-          --surface-3: rgba(0,0,0,0.10);
-          --surface-faint: rgba(0,0,0,0.02);
-          --grid: rgba(0,0,0,0.055);
-          --glow1: rgba(0,0,0,0.03);
-          --glow2: rgba(0,0,0,0.02);
-          --card-shadow: 0 24px 60px -34px rgba(0,0,0,0.14);
-          --card-inset: inset 0 1px 0 rgba(255,255,255,0.9);
-          --title-grad: linear-gradient(135deg, #09090b 0%, #3f3f46 60%, #71717a 100%);
 
-          /* Акцент — чёрный */
-          --accent: #09090b;
-          --accent-fg: #fafafa;
-          --accent-shadow: 0 10px 30px -10px rgba(0,0,0,0.25);
+          --card-bg: rgba(255,255,255,0.80);
+          --card-border: rgba(6,182,212,0.16);
+          --border: rgba(6,182,212,0.16);
+          --border-strong: rgba(6,182,212,0.38);
+          --surface: rgba(6,182,212,0.05);
+          --surface-2: rgba(6,182,212,0.09);
+          --surface-3: rgba(6,182,212,0.15);
+          --surface-faint: rgba(6,182,212,0.03);
+
+          --grid: rgba(6,182,212,0.10);
+          --glow1: rgba(6,182,212,0.14);
+          --glow2: rgba(2,132,199,0.10);
+          --card-shadow: 0 24px 60px -34px rgba(2,100,140,0.18);
+          --card-inset: inset 0 1px 0 rgba(255,255,255,0.85);
+          --title-grad: linear-gradient(135deg, #0e7490 0%, #0284c7 50%, #06b6d4 100%);
+
+          --accent-from: #0284c7;
+          --accent-to: #0369a1;
+          --accent-fg: #f0fbff;
+          --accent-shadow: 0 10px 30px -10px rgba(2,132,199,0.45);
         }
 
         .qa-display { font-family: 'Bricolage Grotesque', sans-serif; }
@@ -411,27 +415,25 @@ export default function Home() {
           color: transparent;
         }
 
-        /* Точка-индикатор рядом с заголовками секций */
         .qa-dot {
           display: inline-block;
           height: 6px; width: 6px;
           border-radius: 50%;
-          background: var(--text);
-          opacity: 0.5;
+          background: var(--accent-from);
+          box-shadow: 0 0 8px var(--accent-from);
           flex-shrink: 0;
         }
 
-        /* Кнопка «Запустить анализ» */
         .qa-run {
           color: var(--accent-fg);
-          background: var(--accent);
+          background: linear-gradient(90deg, var(--accent-from), var(--accent-to));
           box-shadow: var(--accent-shadow);
         }
         .qa-run:not(:disabled):hover {
-          box-shadow: 0 20px 56px -14px rgba(255,255,255,0.45);
+          box-shadow: 0 20px 56px -14px rgba(6,182,212,0.80);
         }
         .qa-root.qa-light .qa-run:not(:disabled):hover {
-          box-shadow: 0 20px 56px -14px rgba(0,0,0,0.3);
+          box-shadow: 0 20px 56px -14px rgba(2,132,199,0.55);
         }
 
         .qa-bg {
