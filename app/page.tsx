@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Copy, Check, Loader2, Sparkles, Zap, Send, AlertTriangle, Terminal, ChevronDown, RotateCcw } from "lucide-react";
+import { X, Copy, Check, Loader2, Zap, Send, AlertTriangle, Terminal, ChevronDown, RotateCcw } from "lucide-react";
 
 const MODELS = [
   { id: "gemini", label: "✨ Gemini" },
@@ -120,18 +120,11 @@ export default function Home() {
 
         {/* Хедер */}
         <header className="text-center mb-12 qa-rise">
-          <span className="inline-flex items-center gap-2 px-3.5 py-1.5 mb-6 rounded-full border border-white/10 bg-white/[0.04] text-xs font-medium text-[#9fb0ad] backdrop-blur-sm">
-            <Sparkles size={13} className="text-[#34d399]" />
-            Анализ · Кейсы · Код
-          </span>
-          <h1 className="qa-display text-5xl sm:text-6xl font-extrabold tracking-tight leading-[1.05] mb-5">
+          <h1 className="qa-display text-5xl sm:text-6xl font-extrabold tracking-tight leading-[1.05]">
             <span className="bg-gradient-to-br from-white via-[#d9fbef] to-[#7fe9c9] text-transparent bg-clip-text">
               QA AI Assistant
             </span>
           </h1>
-          <p className="text-base sm:text-lg text-[#8a9794] max-w-xl mx-auto leading-relaxed">
-            AI-ассистент для обеспечения качества
-          </p>
         </header>
 
         {/* Панель выбора */}
@@ -140,7 +133,7 @@ export default function Home() {
             <div className="sm:pr-7">
               <h3 className="flex items-center gap-2 text-[11px] font-semibold text-[#9fb0ad] mb-3.5 uppercase tracking-[0.14em]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#34d399] shadow-[0_0_8px_#34d399]" />
-                Нейросеть
+                Выберите модель
               </h3>
               <div className="flex gap-2.5">
                 {MODELS.map((m) => {
@@ -215,7 +208,7 @@ export default function Home() {
         <section className="qa-card rounded-2xl p-2 mb-5 qa-rise" style={{ animationDelay: "0.16s" }}>
           <div className="relative">
             <textarea
-              placeholder="Вставьте требования или код…"
+              placeholder="Добавьте текст или код…"
               className="qa-mono w-full h-56 p-4 pr-12 bg-transparent rounded-xl focus:outline-none resize-y text-sm text-[#e8edec] placeholder:text-[#5f6b69] leading-relaxed"
               value={input}
               onChange={(e) => setInput(e.target.value)}
