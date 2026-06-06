@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Copy, Check, Loader2, Sparkles, Zap } from "lucide-react";
+import { X, Copy, Check, Loader2, Sparkles, Zap, Send, AlertTriangle } from "lucide-react";
 
 const MODELS = [
   { id: "gemini", label: "✨ Gemini" },
@@ -10,34 +10,48 @@ const MODELS = [
 
 const TASKS = [
   { id: "requirements", label: "📋 Анализ" },
-  { id: "testcases", label: "🧪 Тест-кейсы" },
+  { id: "testcases", label: "🧪 Кейсы" },
   { id: "code", label: "💻 Код" },
 ];
 
+const MODEL_LABEL = (id) => MODELS.find((m) => m.id === id)?.label || id;
+
 export default function Home() {
   const [input, setInput] = useState("");
-  const [result, setResult] = useState("");
-  const [model, setModel] = useState("gemini");
+  const [results, setResults] = useState([]); // [{ model, label, ok, text }]
+  const [error, setError] = useState("");
+  const [models, setModels] = useState(["gemini"]); // мультивыбор, по умолчанию одна
   const [taskType, setTaskType] = useState("requirements");
   const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(null);
+
+  const toggleModel = (id) => {
+    setModels((prev) =>
+      prev.includes(id)
+        ? prev.length > 1
+          ? prev.filter((x) => x !== id)
+          : prev
+        : [...prev, id]
+    );
+  };
 
   const handleAnalyze = async () => {
     if (!input.trim() || loading) return;
     setLoading(true);
-    setResult("⏳ ИИ обрабатывает запрос...");
+    setError("");
+    setResults([]);
 
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: input, taskType, model }),
+        body: JSON.stringify({ prompt: input, taskType, models, model: models[0] }),
       });
       const data = await res.json();
-      if (data.error) setResult(`❌ Ошибка: ${data.error}`);
-      else setResult(data.result);
+      if (data.error) setError(data.error);
+      else setResults(data.results || []);
     } catch {
-      setResult("❌ Произошла ошибка сети.");
+      setError("Произошла ошибка сети.");
     } finally {
       setLoading(false);
     }
@@ -45,14 +59,15 @@ export default function Home() {
 
   const handleClear = () => {
     setInput("");
-    setResult("");
+    setResults([]);
+    setError("");
   };
 
-  const handleCopy = async () => {
+  const handleCopy = async (key, text) => {
     try {
-      await navigator.clipboard.writeText(result);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
     } catch {
       /* clipboard недоступен */
     }
@@ -72,9 +87,11 @@ export default function Home() {
   const chipOff =
     "text-[#8a9794] bg-white/[0.03] border-white/10 hover:text-[#e8edec] hover:bg-white/[0.06] hover:border-white/20";
 
+  // несколько блоков выводим в 2 колонки на широких экранах — удобно сравнивать
+  const multi = results.length > 1 || (loading && models.length > 1);
+
   return (
     <div className="qa-root min-h-screen w-full">
-      {/* атмосфера фона */}
       <div className="qa-bg" />
       <div className="qa-grid" />
 
@@ -84,7 +101,7 @@ export default function Home() {
         <header className="text-center mb-12 qa-rise">
           <span className="inline-flex items-center gap-2 px-3.5 py-1.5 mb-6 rounded-full border border-white/10 bg-white/[0.04] text-xs font-medium text-[#9fb0ad] backdrop-blur-sm">
             <Sparkles size={13} className="text-[#34d399]" />
-            AI-ассистент для обеспечения качества
+            Анализ · Кейсы · Код
           </span>
           <h1 className="qa-display text-5xl sm:text-6xl font-extrabold tracking-tight leading-[1.05] mb-5">
             <span className="bg-gradient-to-br from-white via-[#d9fbef] to-[#7fe9c9] text-transparent bg-clip-text">
@@ -92,29 +109,32 @@ export default function Home() {
             </span>
           </h1>
           <p className="text-base sm:text-lg text-[#8a9794] max-w-xl mx-auto leading-relaxed">
-            Анализ требований, генерация тест-кейсов и ревью кода — на базе ИИ.
+            AI-ассистент для обеспечения качества
           </p>
         </header>
 
         {/* Панель выбора */}
         <section className="qa-card rounded-2xl p-6 sm:p-7 mb-5 qa-rise" style={{ animationDelay: "0.08s" }}>
           <div className="grid sm:grid-cols-2">
-            {/* Нейросеть */}
             <div className="sm:pr-7">
               <h3 className="flex items-center gap-2 text-[11px] font-semibold text-[#9fb0ad] mb-3.5 uppercase tracking-[0.14em]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#34d399] shadow-[0_0_8px_#34d399]" />
                 Нейросеть
+                <span className="ml-auto normal-case tracking-normal text-[10px] text-[#5f6b69] font-normal">можно выбрать обе</span>
               </h3>
               <div className="flex gap-2.5">
-                {MODELS.map((m) => (
-                  <button key={m.id} onClick={() => setModel(m.id)} className={`${chip} ${model === m.id ? chipOn : chipOff}`}>
-                    {m.label}
-                  </button>
-                ))}
+                {MODELS.map((m) => {
+                  const on = models.includes(m.id);
+                  return (
+                    <button key={m.id} onClick={() => toggleModel(m.id)} className={`${chip} ${on ? chipOn : chipOff}`}>
+                      {on && <Check size={14} className="-ml-0.5" />}
+                      {m.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* разделитель */}
             <div className="sm:pl-7 sm:border-l border-white/10 mt-6 sm:mt-0 pt-6 sm:pt-0 border-t sm:border-t-0">
               <h3 className="flex items-center gap-2 text-[11px] font-semibold text-[#9fb0ad] mb-3.5 uppercase tracking-[0.14em]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#2dd4bf] shadow-[0_0_8px_#2dd4bf]" />
@@ -178,41 +198,80 @@ export default function Home() {
           )}
         </button>
 
-        {/* Результат */}
-        {result && (
-          <section className="qa-card rounded-2xl overflow-hidden mt-7 qa-rise">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-white/[0.02]">
-              <div className="flex items-center gap-2">
-                <span className="flex gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-                </span>
-                <span className="ml-1 text-xs font-medium text-[#8a9794] qa-mono">результат</span>
-              </div>
-              <button
-                onClick={handleCopy}
-                className="flex items-center gap-1.5 text-xs font-medium text-[#8a9794] hover:text-[#34d399] transition-colors"
-              >
-                {copied ? (
-                  <>
-                    <Check size={14} /> Скопировано
-                  </>
-                ) : (
-                  <>
-                    <Copy size={14} /> Копировать
-                  </>
-                )}
-              </button>
-            </div>
-            <div className="qa-mono p-5 sm:p-6 whitespace-pre-wrap text-sm leading-relaxed text-[#d7dedc] min-h-[140px]">
-              {result}
-            </div>
-          </section>
+        {/* Общая ошибка (например, нет параметров) */}
+        {error && (
+          <div className="mt-7 qa-card rounded-2xl p-5 flex items-start gap-3 text-sm text-[#f7a8a8] qa-rise">
+            <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+            <span className="qa-mono leading-relaxed">{error}</span>
+          </div>
         )}
+
+        {/* Результаты — отдельный блок на каждую модель */}
+        {(loading || results.length > 0) && (
+          <div className={`mt-7 grid gap-5 ${multi ? "md:grid-cols-2" : "grid-cols-1"}`}>
+            {loading
+              ? models.map((id) => (
+                  <div key={id} className="qa-card rounded-2xl overflow-hidden qa-rise">
+                    <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-white/[0.02]">
+                      <span className="text-xs font-semibold text-[#8a9794] qa-mono">{MODEL_LABEL(id)}</span>
+                      <Loader2 size={14} className="animate-spin text-[#34d399]" />
+                    </div>
+                    <div className="p-5 sm:p-6 space-y-3 animate-pulse">
+                      <div className="h-3 rounded bg-white/[0.06] w-5/6" />
+                      <div className="h-3 rounded bg-white/[0.06] w-full" />
+                      <div className="h-3 rounded bg-white/[0.06] w-2/3" />
+                      <div className="h-3 rounded bg-white/[0.06] w-3/4" />
+                    </div>
+                  </div>
+                ))
+              : results.map((r) => {
+                  const label = r.label || MODEL_LABEL(r.model);
+                  const copied = copiedKey === r.model;
+                  return (
+                    <div key={r.model} className="qa-card rounded-2xl overflow-hidden qa-rise flex flex-col">
+                      <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-white/[0.02]">
+                        <div className="flex items-center gap-2">
+                          <span className={`h-2 w-2 rounded-full ${r.ok ? "bg-[#28c840] shadow-[0_0_8px_#28c840]" : "bg-[#ff5f57] shadow-[0_0_8px_#ff5f57]"}`} />
+                          <span className="text-xs font-semibold text-[#c7d0ce] qa-mono">{label}</span>
+                        </div>
+                        <button
+                          onClick={() => handleCopy(r.model, r.text)}
+                          className="flex items-center gap-1.5 text-xs font-medium text-[#8a9794] hover:text-[#34d399] transition-colors"
+                        >
+                          {copied ? (
+                            <>
+                              <Check size={14} /> Скопировано
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={14} /> Копировать
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      <div className={`qa-mono p-5 sm:p-6 whitespace-pre-wrap text-sm leading-relaxed min-h-[140px] ${r.ok ? "text-[#d7dedc]" : "text-[#f7a8a8]"}`}>
+                        {r.ok ? r.text : `❌ Ошибка: ${r.text}`}
+                      </div>
+                    </div>
+                  );
+                })}
+          </div>
+        )}
+
+        {/* Подвал с автором */}
+        <footer className="mt-16 text-center qa-rise">
+          <a
+            href="https://t.me/Alexey_Saraev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-white/10 bg-white/[0.03] text-xs text-[#8a9794] hover:text-[#34d399] hover:border-[#34d399]/40 transition-all"
+          >
+            <Send size={12} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            Created by Alexey Saraev
+          </a>
+        </footer>
       </main>
 
-      {/* стили: шрифты, фон, анимации, стеклянные панели */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
