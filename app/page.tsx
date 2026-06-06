@@ -39,10 +39,10 @@ export default function Home() {
   const [showPrompt, setShowPrompt] = useState(false);
 
   const currentPrompt = prompts[taskType];
+  const promptEmpty = !currentPrompt.trim();
   const promptCustomized = currentPrompt !== SYSTEM_PROMPTS[taskType] && !promptEmpty;
   const setCurrentPrompt = (v) => setPrompts((p) => ({ ...p, [taskType]: v }));
   const resetPrompt = () => setPrompts((p) => ({ ...p, [taskType]: SYSTEM_PROMPTS[taskType] }));
-  const promptEmpty = !currentPrompt.trim();
 
   const toggleModel = (id) => {
     setModels((prev) =>
