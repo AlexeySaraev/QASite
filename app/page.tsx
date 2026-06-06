@@ -21,7 +21,6 @@ const ORDER = (id) => {
 };
 const TASK_LABEL = (id) => TASKS.find((t) => t.id === id)?.label || id;
 
-// Стандартные системные промпты (должны совпадать с фолбэком в /api/analyze)
 const SYSTEM_PROMPTS = {
   requirements: `Ты — Senior QA Engineer. Проанализируй требования. Найди противоречия, неоднозначности, пропущенные краевые случаи. Дай рекомендации. Форматируй ответ красиво.`,
   testcases: `Ты — Эксперт по тест-дизайну. Сгенерируй тест-кейсы. Формат: ID, Название, Тип (Позитивный/Негативный/Краевой), Предусловия, Шаги, Ожидаемый результат.`,
@@ -30,19 +29,17 @@ const SYSTEM_PROMPTS = {
 
 export default function Home() {
   const [input, setInput] = useState("");
-  const [results, setResults] = useState([]); // [{ model, label, ok, text }]
+  const [results, setResults] = useState([]);
   const [error, setError] = useState("");
-  const [models, setModels] = useState(["gemini"]); // мультивыбор, по умолчанию одна
+  const [models, setModels] = useState(["gemini"]);
   const [taskType, setTaskType] = useState("requirements");
   const [loading, setLoading] = useState(false);
   const [copiedKey, setCopiedKey] = useState(null);
-  const [theme, setTheme] = useState("dark"); // 'dark' | 'light'
+  const [theme, setTheme] = useState("dark");
 
-  // системный промпт, отдельно для каждого типа задачи (правки сохраняются при переключении)
   const [prompts, setPrompts] = useState({ ...SYSTEM_PROMPTS });
   const [showPrompt, setShowPrompt] = useState(false);
 
-  // загрузка/сохранение выбранной темы
   useEffect(() => {
     try {
       const saved = localStorage.getItem("qa-theme");
@@ -73,7 +70,6 @@ export default function Home() {
     setLoading(true);
     setError("");
     setResults([]);
-
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -101,9 +97,7 @@ export default function Home() {
       await navigator.clipboard.writeText(text);
       setCopiedKey(key);
       setTimeout(() => setCopiedKey(null), 2000);
-    } catch {
-      /* clipboard недоступен */
-    }
+    } catch {}
   };
 
   const handleKeyDown = (e) => {
@@ -116,7 +110,7 @@ export default function Home() {
   const chip =
     "flex-1 min-h-[50px] flex items-center justify-center gap-1.5 text-center rounded-xl text-sm font-semibold border transition-all duration-200 active:scale-[0.97] leading-tight px-2";
   const chipOn =
-    "text-[#04140f] bg-gradient-to-br from-[#34d399] to-[#2dd4bf] border-transparent shadow-[0_10px_30px_-10px_rgba(45,212,191,0.7)]";
+    "text-[var(--accent-fg)] bg-[var(--accent)] border-transparent shadow-[var(--accent-shadow)]";
   const chipOff =
     "text-[var(--muted)] bg-[var(--surface)] border-[var(--border)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] hover:border-[var(--border-strong)]";
 
@@ -132,7 +126,7 @@ export default function Home() {
         onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
         aria-label="Переключить тему"
         title={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
-        className="qa-card fixed top-4 right-4 z-20 h-10 w-10 flex items-center justify-center rounded-full text-[var(--muted)] hover:text-[#34d399] transition-colors"
+        className="qa-card fixed top-4 right-4 z-20 h-10 w-10 flex items-center justify-center rounded-full text-[var(--muted)] hover:text-[var(--text)] transition-colors"
       >
         {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
       </button>
@@ -151,7 +145,7 @@ export default function Home() {
           <div className="grid sm:grid-cols-2">
             <div className="sm:pr-7">
               <h3 className="flex items-center gap-2 text-[11px] font-semibold text-[var(--muted)] mb-3.5 uppercase tracking-[0.14em]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#34d399] shadow-[0_0_8px_#34d399]" />
+                <span className="qa-dot" />
                 Выберите модель
               </h3>
               <div className="flex gap-2.5">
@@ -169,7 +163,7 @@ export default function Home() {
 
             <div className="sm:pl-7 sm:border-l border-[var(--border)] mt-6 sm:mt-0 pt-6 sm:pt-0 border-t sm:border-t-0">
               <h3 className="flex items-center gap-2 text-[11px] font-semibold text-[var(--muted)] mb-3.5 uppercase tracking-[0.14em]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#2dd4bf] shadow-[0_0_8px_#2dd4bf]" />
+                <span className="qa-dot" />
                 Тип задачи
               </h3>
               <div className="flex gap-2.5">
@@ -183,17 +177,17 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Системный промпт — просмотр / редактирование / сброс */}
+        {/* Системный промпт */}
         <section className="qa-card rounded-2xl mb-5 qa-rise overflow-hidden" style={{ animationDelay: "0.12s" }}>
           <button
             onClick={() => setShowPrompt((v) => !v)}
             className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-[var(--surface-faint)] transition-colors"
           >
             <span className="flex items-center gap-2.5">
-              <Terminal size={15} className="text-[#34d399]" />
+              <Terminal size={15} className="text-[var(--text)]" />
               <span className="text-sm font-semibold text-[var(--text-2)]">Системный промпт</span>
               {promptCustomized && (
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]" title="изменён" />
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--text)] opacity-60" title="изменён" />
               )}
             </span>
             <ChevronDown size={18} className={`text-[var(--muted)] transition-transform duration-200 ${showPrompt ? "rotate-180" : ""}`} />
@@ -207,14 +201,14 @@ export default function Home() {
               <textarea
                 value={currentPrompt}
                 onChange={(e) => setCurrentPrompt(e.target.value)}
-                className="qa-mono w-full h-44 p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] focus:outline-none focus:border-[#34d399]/50 focus:ring-2 focus:ring-[#34d399]/15 resize-y text-sm text-[var(--text)] leading-relaxed transition-all"
+                className="qa-mono w-full h-44 p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] focus:outline-none focus:border-[var(--border-strong)] focus:ring-2 focus:ring-[var(--border)] resize-y text-sm text-[var(--text)] leading-relaxed transition-all"
               />
               <div className="flex items-center justify-between mt-3">
                 <span className="text-[11px] text-[var(--faint)] qa-mono">{currentPrompt.length} симв.</span>
                 <button
                   onClick={resetPrompt}
                   disabled={!promptCustomized}
-                  className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted)] hover:text-[#34d399] disabled:opacity-35 disabled:hover:text-[var(--muted)] disabled:cursor-default transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted)] hover:text-[var(--text)] disabled:opacity-35 disabled:hover:text-[var(--muted)] disabled:cursor-default transition-colors"
                 >
                   <RotateCcw size={13} /> Вернуть стандартный
                 </button>
@@ -254,7 +248,7 @@ export default function Home() {
         <button
           onClick={handleAnalyze}
           disabled={loading || !input.trim()}
-          className="qa-rise group w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl text-base font-bold text-[#04140f] bg-gradient-to-r from-[#34d399] to-[#2dd4bf] shadow-[0_14px_44px_-14px_rgba(45,212,191,0.8)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_20px_56px_-14px_rgba(45,212,191,0.95)] active:translate-y-0 disabled:opacity-30 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:translate-y-0"
+          className="qa-run qa-rise group w-full flex items-center justify-center gap-2.5 py-4 rounded-2xl text-base font-bold transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-30 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:translate-y-0"
           style={{ animationDelay: "0.24s" }}
         >
           {loading ? (
@@ -278,7 +272,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Результаты — отдельный блок на каждую модель */}
+        {/* Результаты */}
         {(loading || results.length > 0) && (
           <div className={`mt-7 grid gap-5 ${multi ? "md:grid-cols-2" : "grid-cols-1"}`}>
             {loading
@@ -286,7 +280,7 @@ export default function Home() {
                   <div key={id} className="qa-card rounded-2xl overflow-hidden qa-rise">
                     <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] bg-[var(--surface-faint)]">
                       <span className="text-xs font-semibold text-[var(--muted)] qa-mono">{MODEL_LABEL(id)}</span>
-                      <Loader2 size={14} className="animate-spin text-[#34d399]" />
+                      <Loader2 size={14} className="animate-spin text-[var(--text)]" />
                     </div>
                     <div className="p-5 sm:p-6 space-y-3 animate-pulse">
                       <div className="h-3 rounded bg-[var(--surface-2)] w-5/6" />
@@ -303,21 +297,17 @@ export default function Home() {
                     <div key={r.model} className="qa-card rounded-2xl overflow-hidden qa-rise flex flex-col">
                       <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] bg-[var(--surface-faint)]">
                         <div className="flex items-center gap-2">
-                          <span className={`h-2 w-2 rounded-full ${r.ok ? "bg-[#28c840] shadow-[0_0_8px_#28c840]" : "bg-[#ff5f57] shadow-[0_0_8px_#ff5f57]"}`} />
+                          <span className={`h-2 w-2 rounded-full ${r.ok ? "bg-[var(--text)] opacity-80" : "bg-[var(--error)]"}`} />
                           <span className="text-xs font-semibold text-[var(--text-2)] qa-mono">{label}</span>
                         </div>
                         <button
                           onClick={() => handleCopy(r.model, r.text)}
-                          className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted)] hover:text-[#34d399] transition-colors"
+                          className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted)] hover:text-[var(--text)] transition-colors"
                         >
                           {copied ? (
-                            <>
-                              <Check size={14} /> Скопировано
-                            </>
+                            <><Check size={14} /> Скопировано</>
                           ) : (
-                            <>
-                              <Copy size={14} /> Копировать
-                            </>
+                            <><Copy size={14} /> Копировать</>
                           )}
                         </button>
                       </div>
@@ -330,13 +320,13 @@ export default function Home() {
           </div>
         )}
 
-        {/* Подвал с автором */}
+        {/* Подвал */}
         <footer className="mt-16 text-center qa-rise">
           <a
             href="https://t.me/Alexey_Saraev"
             target="_blank"
             rel="noopener noreferrer"
-            className="group inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] text-xs text-[var(--muted)] hover:text-[#34d399] hover:border-[#34d399]/40 transition-all"
+            className="group inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] text-xs text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--border-strong)] transition-all"
           >
             <Send size={12} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             Created by Alexey Saraev
@@ -349,26 +339,31 @@ export default function Home() {
 
         /* ── Тёмная тема (по умолчанию) ── */
         .qa-root {
-          --bg: #07090a;
-          --text: #e8edec;
-          --text-2: #c7d0ce;
-          --muted: #8a9794;
-          --faint: #5f6b69;
-          --error: #f7a8a8;
-          --card-bg: rgba(255,255,255,0.035);
-          --card-border: rgba(255,255,255,0.09);
+          --bg: #09090b;
+          --text: #f4f4f5;
+          --text-2: #d4d4d8;
+          --muted: #71717a;
+          --faint: #3f3f46;
+          --error: #fca5a5;
+          --card-bg: rgba(255,255,255,0.04);
+          --card-border: rgba(255,255,255,0.10);
           --border: rgba(255,255,255,0.10);
-          --border-strong: rgba(255,255,255,0.20);
+          --border-strong: rgba(255,255,255,0.28);
           --surface: rgba(255,255,255,0.03);
-          --surface-2: rgba(255,255,255,0.06);
-          --surface-3: rgba(255,255,255,0.12);
+          --surface-2: rgba(255,255,255,0.07);
+          --surface-3: rgba(255,255,255,0.13);
           --surface-faint: rgba(255,255,255,0.02);
-          --grid: rgba(255,255,255,0.022);
-          --glow1: rgba(52,211,153,0.16);
-          --glow2: rgba(45,212,191,0.13);
-          --card-shadow: 0 24px 60px -30px rgba(0,0,0,0.7);
-          --card-inset: inset 0 1px 0 rgba(255,255,255,0.04);
-          --title-grad: linear-gradient(135deg, #ffffff, #d9fbef, #7fe9c9);
+          --grid: rgba(255,255,255,0.03);
+          --glow1: rgba(255,255,255,0.04);
+          --glow2: rgba(255,255,255,0.025);
+          --card-shadow: 0 24px 60px -30px rgba(0,0,0,0.85);
+          --card-inset: inset 0 1px 0 rgba(255,255,255,0.07);
+          --title-grad: linear-gradient(135deg, #ffffff 0%, #a1a1aa 60%, #52525b 100%);
+
+          /* Акцент — белый */
+          --accent: #ffffff;
+          --accent-fg: #09090b;
+          --accent-shadow: 0 10px 30px -10px rgba(255,255,255,0.3);
 
           font-family: 'Hanken Grotesk', system-ui, sans-serif;
           color: var(--text);
@@ -379,36 +374,64 @@ export default function Home() {
 
         /* ── Светлая тема ── */
         .qa-root.qa-light {
-          --bg: #eef3f1;
-          --text: #0e1a18;
-          --text-2: #2f3d3a;
-          --muted: #5d6b68;
-          --faint: #93a09c;
+          --bg: #fafafa;
+          --text: #09090b;
+          --text-2: #27272a;
+          --muted: #71717a;
+          --faint: #a1a1aa;
           --error: #b91c1c;
-          --card-bg: rgba(255,255,255,0.72);
-          --card-border: rgba(2,20,16,0.08);
-          --border: rgba(2,20,16,0.10);
-          --border-strong: rgba(2,20,16,0.18);
-          --surface: rgba(2,20,16,0.035);
-          --surface-2: rgba(2,20,16,0.06);
-          --surface-3: rgba(2,20,16,0.10);
-          --surface-faint: rgba(2,20,16,0.02);
-          --grid: rgba(2,20,16,0.05);
-          --glow1: rgba(52,211,153,0.22);
-          --glow2: rgba(45,212,191,0.18);
-          --card-shadow: 0 24px 60px -34px rgba(2,30,24,0.22);
-          --card-inset: inset 0 1px 0 rgba(255,255,255,0.6);
-          --title-grad: linear-gradient(135deg, #0f766e, #0d9488, #059669);
+          --card-bg: rgba(255,255,255,0.85);
+          --card-border: rgba(0,0,0,0.08);
+          --border: rgba(0,0,0,0.09);
+          --border-strong: rgba(0,0,0,0.22);
+          --surface: rgba(0,0,0,0.03);
+          --surface-2: rgba(0,0,0,0.055);
+          --surface-3: rgba(0,0,0,0.10);
+          --surface-faint: rgba(0,0,0,0.02);
+          --grid: rgba(0,0,0,0.055);
+          --glow1: rgba(0,0,0,0.03);
+          --glow2: rgba(0,0,0,0.02);
+          --card-shadow: 0 24px 60px -34px rgba(0,0,0,0.14);
+          --card-inset: inset 0 1px 0 rgba(255,255,255,0.9);
+          --title-grad: linear-gradient(135deg, #09090b 0%, #3f3f46 60%, #71717a 100%);
+
+          /* Акцент — чёрный */
+          --accent: #09090b;
+          --accent-fg: #fafafa;
+          --accent-shadow: 0 10px 30px -10px rgba(0,0,0,0.25);
         }
 
         .qa-display { font-family: 'Bricolage Grotesque', sans-serif; }
-        .qa-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+        .qa-mono    { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 
         .qa-title {
           background-image: var(--title-grad);
           -webkit-background-clip: text;
                   background-clip: text;
           color: transparent;
+        }
+
+        /* Точка-индикатор рядом с заголовками секций */
+        .qa-dot {
+          display: inline-block;
+          height: 6px; width: 6px;
+          border-radius: 50%;
+          background: var(--text);
+          opacity: 0.5;
+          flex-shrink: 0;
+        }
+
+        /* Кнопка «Запустить анализ» */
+        .qa-run {
+          color: var(--accent-fg);
+          background: var(--accent);
+          box-shadow: var(--accent-shadow);
+        }
+        .qa-run:not(:disabled):hover {
+          box-shadow: 0 20px 56px -14px rgba(255,255,255,0.45);
+        }
+        .qa-root.qa-light .qa-run:not(:disabled):hover {
+          box-shadow: 0 20px 56px -14px rgba(0,0,0,0.3);
         }
 
         .qa-bg {
