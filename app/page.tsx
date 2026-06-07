@@ -118,15 +118,12 @@ function ScreenshotDropzone({ label, file, onFile }: { label: string; file: File
 }
 
 // ── Вкладка сравнения ─────────────────────────────────────────
-function CompareTab({ models }: { models: string[] }) {
+function CompareTab() {
   const [file1, setFile1] = useState<File | null>(null);
   const [file2, setFile2] = useState<File | null>(null);
   const [diffCanvas, setDiffCanvas] = useState<HTMLCanvasElement | null>(null);
   const [diffPct, setDiffPct] = useState<number | null>(null);
-  const [aiReport, setAiReport] = useState("");
-  const [aiError, setAiError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [copiedReport, setCopiedReport] = useState(false);
 
   const canCompare = file1 && file2 && !loading;
 
@@ -135,123 +132,101 @@ function CompareTab({ models }: { models: string[] }) {
     setLoading(true);
     setDiffCanvas(null);
     setDiffPct(null);
-    setAiReport("");
-    setAiError("");
-
     try {
       const [img1, img2] = await Promise.all([loadImage(file1), loadImage(file2)]);
       const { canvas, diffPct: pct } = diffImages(img1, img2);
       setDiffCanvas(canvas);
       setDiffPct(pct);
-
-      // Отправляем diff-изображение в API как base64
-      const diffBase64 = canvas.toDataURL("image/png").split(",")[1];
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          taskType: "compare",
-          models: [models[0]],
-          model: models[0],
-          systemPrompt: SYSTEM_PROMPTS.compare,
-          prompt: `Процент несовпадающих пикселей: ${pct}%. Проанализируй diff-изображение и опиши расхождения.`,
-          imageBase64: diffBase64,
-        }),
-      });
-      const data = await res.json();
-      if (data.error) setAiError(data.error);
-      else setAiReport(data.results?.[0]?.text || "");
-    } catch (e) {
-      setAiError("Произошла ошибка при сравнении.");
+    } catch {
+      // ignore
     } finally {
       setLoading(false);
     }
   };
 
+  const handleReset = () => {
+    setFile1(null); setFile2(null);
+    setDiffCanvas(null); setDiffPct(null);
+  };
+
   const handleDownloadDiff = () => {
     if (!diffCanvas) return;
-    const d = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
+    const d = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
     const ts = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}`;
     const a = document.createElement("a");
     a.href = diffCanvas.toDataURL("image/png");
-    a.download = `diff_${ts}.png`;
-    a.click();
+    a.download = `diff_${ts}.png`; a.click();
   };
 
-  const handleCopyReport = async () => {
-    try { await navigator.clipboard.writeText(aiReport); setCopiedReport(true); setTimeout(() => setCopiedReport(false), 2000); } catch {}
-  };
-
-  const diffColor = diffPct === null ? "" : diffPct < 1 ? "text-emerald-600" : diffPct < 5 ? "text-amber-500" : "text-red-500";
+  const diffColor = diffPct === null ? "" : diffPct === 0 ? "text-emerald-600" : diffPct < 5 ? "text-amber-500" : "text-red-500";
+  const diffLabel = diffPct === null ? "" : diffPct === 0 ? "Скриншоты идентичны ✓" : `Найдено расхождений: ${diffPct}%`;
 
   return (
     <div className="space-y-3">
-      {/* Загрузка скриншотов */}
-      <div className="grid grid-cols-2 gap-3">
-        <ScreenshotDropzone label="Скриншот 1 (эталон)" file={file1} onFile={setFile1} />
-        <ScreenshotDropzone label="Скриншот 2 (проверяемый)" file={file2} onFile={setFile2} />
-      </div>
+      {/* Загрузка — скрываем после результата */}
+      {!diffCanvas && (
+        <div className="grid grid-cols-2 gap-3">
+          <ScreenshotDropzone label="Эталон" file={file1} onFile={setFile1} />
+          <ScreenshotDropzone label="Проверяемый" file={file2} onFile={setFile2} />
+        </div>
+      )}
 
       {/* Кнопка сравнения */}
-      <button
-        onClick={handleCompare}
-        disabled={!canCompare}
-        className="qa-run group w-full flex items-center justify-center gap-2.5 py-3.5 sm:py-4 rounded-2xl text-base font-bold transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-30 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:translate-y-0"
-      >
-        {loading ? (
-          <><Loader2 size={18} className="animate-spin" />Сравниваю…</>
-        ) : (
-          <><ScanSearch size={18} className="transition-transform group-hover:scale-110" />Сравнить скриншоты</>
-        )}
-      </button>
-
-      {/* Результат diff */}
-      {diffCanvas && diffPct !== null && (
-        <div className="qa-card rounded-2xl overflow-hidden qa-rise">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--surface-faint)]">
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold text-[var(--text-2)]">Diff-изображение</span>
-              <span className={`text-xs font-bold qa-mono ${diffColor}`}>{diffPct}% несовпадений</span>
-            </div>
-            <button onClick={handleDownloadDiff} className="flex items-center gap-1 text-xs font-medium text-[var(--muted)] hover:text-[var(--accent-from)] transition-colors">
-              <Download size={13} /> PNG
-            </button>
-          </div>
-          <div className="p-4 flex justify-center bg-[var(--surface-faint)]">
-            <img src={diffCanvas.toDataURL()} alt="diff" className="max-w-full rounded-lg border border-[var(--border)]" style={{ maxHeight: 400 }} />
-          </div>
-        </div>
-      )}
-
-      {/* AI-отчёт */}
-      {(aiReport || aiError) && (
-        <div className="qa-card rounded-2xl overflow-hidden qa-rise flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--surface-faint)]">
-            <div className="flex items-center gap-2">
-              <span className={`h-2 w-2 shrink-0 rounded-full ${aiReport ? "bg-[var(--accent-from)] shadow-[0_0_6px_var(--accent-from)]" : "bg-[var(--error)]"}`} />
-              <span className="text-xs font-semibold text-[var(--text-2)] qa-mono">AI-отчёт</span>
-            </div>
-            {aiReport && (
-              <button onClick={handleCopyReport} className="flex items-center gap-1 text-xs font-medium text-[var(--muted)] hover:text-[var(--accent-from)] transition-colors">
-                {copiedReport ? <><Check size={13} /> Скопировано</> : <><Copy size={13} /> Копировать</>}
-              </button>
-            )}
-          </div>
-          <div className={`qa-mono p-4 sm:p-5 whitespace-pre-wrap text-sm leading-relaxed min-h-[120px] ${aiReport ? "text-[var(--text-2)]" : "text-[var(--error)]"}`}>
-            {aiReport || `❌ Ошибка: ${aiError}`}
-          </div>
-        </div>
-      )}
-
-      {/* Кнопка сброса — появляется после результата */}
-      {(diffCanvas || aiError) && !loading && (
+      {!diffCanvas && (
         <button
-          onClick={() => { setFile1(null); setFile2(null); setDiffCanvas(null); setDiffPct(null); setAiReport(""); setAiError(""); }}
-          className="qa-rise w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--accent-from)] hover:border-[var(--accent-from)]/40 hover:bg-[var(--surface-2)] transition-all"
+          onClick={handleCompare}
+          disabled={!canCompare}
+          className="qa-run group w-full flex items-center justify-center gap-2.5 py-3.5 sm:py-4 rounded-2xl text-base font-bold transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-30 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:translate-y-0"
         >
-          <RotateCcw size={14} /> Новое сравнение
+          {loading
+            ? <><Loader2 size={18} className="animate-spin" />Сравниваю…</>
+            : <><ScanSearch size={18} className="transition-transform group-hover:scale-110" />Сравнить скриншоты</>
+          }
         </button>
+      )}
+
+      {/* Результат — три изображения */}
+      {diffCanvas && diffPct !== null && (
+        <>
+          {/* Заголовок с процентом */}
+          <div className="qa-card rounded-2xl px-4 py-3 flex items-center justify-between qa-rise">
+            <span className={`text-sm font-bold qa-mono ${diffColor}`}>{diffLabel}</span>
+            <div className="flex items-center gap-3">
+              <button onClick={handleDownloadDiff} className="flex items-center gap-1 text-xs font-medium text-[var(--muted)] hover:text-[var(--accent-from)] transition-colors">
+                <Download size={13} /> Скачать diff
+              </button>
+            </div>
+          </div>
+
+          {/* Три скрина */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 qa-rise">
+            {[
+              { label: "Эталон", src: file1 ? URL.createObjectURL(file1) : "", tag: "bg-emerald-100 text-emerald-700" },
+              { label: "Проверяемый", src: file2 ? URL.createObjectURL(file2) : "", tag: "bg-sky-100 text-sky-700" },
+              { label: "Расхождения", src: diffCanvas.toDataURL(), tag: diffPct === 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600" },
+            ].map(({ label, src, tag }) => (
+              <div key={label} className="qa-card rounded-xl overflow-hidden flex flex-col">
+                <div className={`px-3 py-1.5 flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface-faint)]`}>
+                  <span className="text-xs font-semibold text-[var(--text-2)]">{label}</span>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${tag}`}>
+                    {label === "Расхождения" ? (diffPct === 0 ? "0%" : `${diffPct}%`) : label === "Эталон" ? "base" : "actual"}
+                  </span>
+                </div>
+                <div className="p-2 bg-[var(--surface-faint)] flex items-center justify-center min-h-[120px]">
+                  <img src={src} alt={label} className="max-w-full rounded object-contain" style={{ maxHeight: 260 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Кнопка сброса */}
+          <button
+            onClick={handleReset}
+            className="qa-rise w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--accent-from)] hover:border-[var(--accent-from)]/40 hover:bg-[var(--surface-2)] transition-all"
+          >
+            <RotateCcw size={14} /> Новое сравнение
+          </button>
+        </>
       )}
     </div>
   );
@@ -393,7 +368,7 @@ export default function Home() {
 
           {/* Вкладка сравнения */}
           {isCompare ? (
-            <CompareTab models={models} />
+            <CompareTab />
           ) : (
             <>
               {/* Системный промпт */}
