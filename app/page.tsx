@@ -12,7 +12,7 @@ const TASKS = [
   { id: "requirements", label: "📋 Анализ" },
   { id: "testcases", label: "🧪 Кейсы" },
   { id: "code", label: "💻 Код" },
-  { id: "compare", label: "🔍 Сравнение" },
+  { id: "compare", label: "🖼️ Сравнить" },
   { id: "postman", label: "📡 Postman" },
 ];
 
