@@ -243,6 +243,16 @@ function CompareTab({ models }: { models: string[] }) {
           </div>
         </div>
       )}
+
+      {/* Кнопка сброса — появляется после результата */}
+      {(diffCanvas || aiError) && !loading && (
+        <button
+          onClick={() => { setFile1(null); setFile2(null); setDiffCanvas(null); setDiffPct(null); setAiReport(""); setAiError(""); }}
+          className="qa-rise w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--accent-from)] hover:border-[var(--accent-from)]/40 hover:bg-[var(--surface-2)] transition-all"
+        >
+          <RotateCcw size={14} /> Новое сравнение
+        </button>
+      )}
     </div>
   );
 }
