@@ -13,6 +13,7 @@ const TASKS = [
   { id: "testcases", label: "🧪 Кейсы" },
   { id: "code", label: "💻 Код" },
   { id: "compare", label: "🔍 Сравнение" },
+  { id: "postman", label: "📡 Postman" },
 ];
 
 const MODEL_LABEL = (id) => MODELS.find((m) => m.id === id)?.label || id;
@@ -24,6 +25,12 @@ const SYSTEM_PROMPTS = {
   testcases: `Ты — Эксперт по тест-дизайну. Сгенерируй тест-кейсы. Формат: ID, Название, Тип (Позитивный/Негативный/Краевой), Предусловия, Шаги, Ожидаемый результат.`,
   code: `Ты — QA Automation Engineer & Security Expert. Проанализируй код: найди баги, уязвимости, проблемы производительности. Предложи рефакторинг.`,
   compare: `Ты — QA Engineer, специалист по визуальному тестированию. Тебе передаётся diff-изображение, на котором красным цветом выделены пиксельные различия между двумя скриншотами. Напиши подробный отчёт: какие элементы отличаются (позиция, цвет, размер, текст), насколько критичны расхождения, есть ли признаки регрессии. Форматируй структурированно.`,
+  postman: `Ты — QA Automation Engineer, эксперт по API-тестированию. На вход получаешь Swagger/OpenAPI спецификацию (JSON или YAML). Сгенерируй полную Postman Collection v2.1 в формате JSON. Требования:
+1. Для каждого эндпоинта создай папку с именем тега или пути.
+2. Для каждой операции создай минимум 3 запроса: позитивный (happy path), негативный (невалидные данные / отсутствующие поля), граничные значения (пустые строки, 0, максимальные значения, спецсимволы).
+3. В каждом запросе добавь pm.test() проверки: статус-код, схему ответа, время ответа < 2000ms.
+4. Используй переменные окружения {{baseUrl}}, {{authToken}} где уместно.
+5. Верни ТОЛЬКО валидный JSON Postman Collection v2.1 без пояснений, без markdown-обёртки, без комментариев. Начни сразу с { "info": ...`,
 };
 
 // ── Canvas diff ──────────────────────────────────────────────
@@ -232,6 +239,168 @@ function CompareTab() {
   );
 }
 
+// ── Вкладка Postman ───────────────────────────────────────────
+function PostmanTab({ models }: { models: string[] }) {
+  const [swagger, setSwagger] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [collectionJson, setCollectionJson] = useState("");
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const canRun = swagger.trim().length > 0 && !loading;
+
+  const handleGenerate = async () => {
+    if (!canRun) return;
+    setLoading(true);
+    setCollectionJson("");
+    setError("");
+    try {
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskType: "postman",
+          models: [models[0]],
+          model: models[0],
+          systemPrompt: SYSTEM_PROMPTS.postman,
+          prompt: swagger.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.error) { setError(data.error); return; }
+      const raw = data.results?.[0]?.text || "";
+      // Вырезаем JSON если модель всё же обернула в ```
+      const clean = raw.replace(/^```[a-z]*\n?/i, "").replace(/```\s*$/i, "").trim();
+      setCollectionJson(clean);
+    } catch {
+      setError("Произошла ошибка сети.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getTimestamp = () => {
+    const d = new Date(); const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}`;
+  };
+
+  const handleDownloadJson = () => {
+    const blob = new Blob([collectionJson], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `postman_collection_${getTimestamp()}.json`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadJs = () => {
+    // Оборачиваем коллекцию в Newman-ready JS скрипт
+    const js = `// Newman-ready Postman Collection\n// Run: newman run collection.js\nconst collection = ${collectionJson};\nmodule.exports = collection;`;
+    const blob = new Blob([js], { type: "text/javascript;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `postman_collection_${getTimestamp()}.js`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCopy = async () => {
+    try { await navigator.clipboard.writeText(collectionJson); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
+  };
+
+  const handleReset = () => { setSwagger(""); setCollectionJson(""); setError(""); };
+
+  // Считаем кол-во сгенерированных запросов
+  let requestCount = 0;
+  if (collectionJson) {
+    try { requestCount = (JSON.parse(collectionJson)?.item || []).flatMap((f: any) => f.item || [f]).length; } catch {}
+  }
+
+  return (
+    <div className="space-y-3">
+      {!collectionJson && !error && (
+        <>
+          <div className="qa-card rounded-2xl p-2">
+            <div className="relative">
+              <textarea
+                placeholder="Вставьте Swagger / OpenAPI JSON или YAML…"
+                className="qa-mono w-full h-56 p-3 sm:p-4 bg-transparent rounded-xl focus:outline-none resize-y text-sm text-[var(--text)] placeholder:text-[var(--faint)] leading-relaxed"
+                value={swagger}
+                onChange={(e) => setSwagger(e.target.value)}
+              />
+              {swagger && (
+                <button onClick={() => setSwagger("")} className="absolute top-3 right-3 h-6 w-6 flex items-center justify-center rounded-lg bg-[var(--surface-2)] text-[var(--muted)] hover:bg-[var(--surface-3)] hover:text-[var(--text)] transition-all">
+                  <X size={13} />
+                </button>
+              )}
+              <div className="absolute bottom-2.5 right-3.5 text-[10px] text-[var(--faint)] select-none pointer-events-none qa-mono">
+                {swagger.length} симв.
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={handleGenerate}
+            disabled={!canRun}
+            className="qa-run group w-full flex items-center justify-center gap-2.5 py-3.5 sm:py-4 rounded-2xl text-base font-bold transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-30 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:translate-y-0"
+          >
+            {loading
+              ? <><Loader2 size={18} className="animate-spin" />Генерирую коллекцию…</>
+              : <><Zap size={18} className="transition-transform group-hover:scale-110" />Сгенерировать Postman Collection</>
+            }
+          </button>
+        </>
+      )}
+
+      {error && (
+        <div className="qa-card rounded-2xl p-4 flex items-start gap-3 text-sm text-[var(--error)] qa-rise">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <span className="qa-mono leading-relaxed">{error}</span>
+        </div>
+      )}
+
+      {collectionJson && (
+        <>
+          {/* Шапка результата */}
+          <div className="qa-card rounded-2xl px-4 py-3 flex items-center justify-between qa-rise">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-[var(--accent-from)] shadow-[0_0_6px_var(--accent-from)]" />
+              <span className="text-sm font-semibold text-[var(--text-2)]">
+                Коллекция готова
+                {requestCount > 0 && <span className="ml-2 text-xs font-normal text-[var(--muted)] qa-mono">{requestCount} запросов</span>}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button onClick={handleCopy} className="flex items-center gap-1 text-xs font-medium text-[var(--muted)] hover:text-[var(--accent-from)] transition-colors">
+                {copied ? <><Check size={13} /> Скопировано</> : <><Copy size={13} /> Копировать</>}
+              </button>
+              <button onClick={handleDownloadJson} className="flex items-center gap-1 text-xs font-medium text-[var(--muted)] hover:text-[var(--accent-from)] transition-colors">
+                <Download size={13} /> JSON
+              </button>
+              <button onClick={handleDownloadJs} className="flex items-center gap-1 text-xs font-medium text-[var(--muted)] hover:text-[var(--accent-from)] transition-colors">
+                <Download size={13} /> JS
+              </button>
+            </div>
+          </div>
+
+          {/* Превью JSON */}
+          <div className="qa-card rounded-2xl overflow-hidden qa-rise">
+            <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface-faint)]">
+              <span className="text-xs font-semibold text-[var(--muted)] qa-mono">postman_collection.json</span>
+            </div>
+            <pre className="qa-mono p-4 text-xs text-[var(--text-2)] leading-relaxed overflow-auto max-h-72 whitespace-pre-wrap break-all">
+              {collectionJson.length > 2000 ? collectionJson.slice(0, 2000) + "\n\n… (скачайте файл для полного содержимого)" : collectionJson}
+            </pre>
+          </div>
+
+          <button
+            onClick={handleReset}
+            className="qa-rise w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--accent-from)] hover:border-[var(--accent-from)]/40 hover:bg-[var(--surface-2)] transition-all"
+          >
+            <RotateCcw size={14} /> Новая коллекция
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Главный компонент ─────────────────────────────────────────
 export default function Home() {
   const [inputByTask, setInputByTask] = useState<Record<string, string>>({});
@@ -245,6 +414,7 @@ export default function Home() {
   const [showPrompt, setShowPrompt] = useState(false);
 
   const isCompare = taskType === "compare";
+  const isPostman = taskType === "postman";
   const results = resultsByTask[taskType] || [];
   const error = errorByTask[taskType] || "";
   const input = inputByTask[taskType] || "";
@@ -336,24 +506,26 @@ export default function Home() {
           {/* Панель выбора */}
           <section className="qa-card rounded-2xl p-4 sm:p-6 mb-3 qa-rise" style={{ animationDelay: "0.08s" }}>
             <div className="flex flex-col sm:flex-row gap-5 sm:gap-0">
-              <div className="flex-1 sm:pr-6">
-                <h3 className="qa-section-label"><span className="qa-dot" />Выберите модель</h3>
-                <div className="flex gap-2">
-                  {MODELS.map((m) => {
-                    const on = models.includes(m.id);
-                    return (
-                      <button key={m.id} onClick={() => toggleModel(m.id)} className={`${chip} ${on ? chipOn : chipOff}`}>
-                        {on && <Check size={13} className="-ml-0.5 shrink-0" />}
-                        <span className="truncate">{m.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="sm:w-px sm:bg-[var(--border)] sm:mx-0" />
-
-              <div className="flex-1 sm:pl-6">
+              {!isCompare && (
+                <>
+                  <div className="flex-1 sm:pr-6">
+                    <h3 className="qa-section-label"><span className="qa-dot" />Выберите модель</h3>
+                    <div className="flex gap-2">
+                      {MODELS.map((m) => {
+                        const on = models.includes(m.id);
+                        return (
+                          <button key={m.id} onClick={() => toggleModel(m.id)} className={`${chip} ${on ? chipOn : chipOff}`}>
+                            {on && <Check size={13} className="-ml-0.5 shrink-0" />}
+                            <span className="truncate">{m.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="sm:w-px sm:bg-[var(--border)] sm:mx-0" />
+                </>
+              )}
+              <div className={`flex-1 ${!isCompare ? "sm:pl-6" : ""}`}>
                 <h3 className="qa-section-label"><span className="qa-dot" />Тип задачи</h3>
                 <div className="flex gap-2 flex-wrap">
                   {TASKS.map((t) => (
@@ -369,6 +541,8 @@ export default function Home() {
           {/* Вкладка сравнения */}
           {isCompare ? (
             <CompareTab />
+          ) : isPostman ? (
+            <PostmanTab models={models} />
           ) : (
             <>
               {/* Системный промпт */}
